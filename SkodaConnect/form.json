@@ -1,0 +1,116 @@
+{
+  "elements": [
+    {
+      "type": "ExpansionPanel",
+      "caption": "MyŠkoda Public API Zugangsdaten",
+      "items": [
+        {
+          "type": "PasswordTextBox",
+          "name": "ApiKey",
+          "caption": "MyŠkoda API Key (aus der MyŠkoda App)"
+        },
+        {
+          "type": "ValidationTextBox",
+          "name": "VIN",
+          "caption": "Fahrgestellnummer (VIN)"
+        }
+      ]
+    },
+    {
+      "type": "ExpansionPanel",
+      "caption": "Abfrage- & API-Filter Optionen (include-Optimierung)",
+      "items": [
+        {
+          "type": "NumberSpinner",
+          "name": "UpdateInterval",
+          "caption": "Abfrageintervall (Sekunden)",
+          "minimum": 300,
+          "suffix": "sek"
+        },
+        {
+          "type": "Label",
+          "caption": "Hinweis Rate Limit (20 Anfragen / Stunde): Das Abfrageintervall muss mindestens 300 Sekunden (5 Minuten) betragen."
+        },
+        {
+          "type": "CheckBox",
+          "name": "IsBEV",
+          "caption": "Reines Battery Electric Vehicle (BEV - blendet Kraftstoff aus API-include-Filter aus)"
+        },
+        {
+          "type": "CheckBox",
+          "name": "EnableClimate",
+          "caption": "Klimatisierungsdaten abfragen (?include=climate)"
+        },
+        {
+          "type": "CheckBox",
+          "name": "EnablePosition",
+          "caption": "Parkposition abfragen (?include=parkingPosition)"
+        },
+        {
+          "type": "CheckBox",
+          "name": "EnableMap",
+          "caption": "Interaktive Karte (OpenStreetMap in HTMLBox) erzeugen"
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "type": "Button",
+      "label": "Fahrzeuge im Account auflisten (GET /vehicles)",
+      "onClick": "SKODA_GetVehicles($id);"
+    },
+    {
+      "type": "Button",
+      "label": "Ladeprofile abrufen (GET /vehicles?include=chargingProfiles)",
+      "onClick": "SKODA_GetChargingProfiles($id);"
+    },
+    {
+      "type": "Button",
+      "label": "Aktuelles Ladeprofil an API senden",
+      "onClick": "SKODA_UpdateChargingProfile($id, IPS_GetVariable($id)['Charging_ProfilesJson']);"
+    },
+    {
+      "type": "Button",
+      "label": "Fahrzeugdaten jetzt abfragen",
+      "onClick": "SKODA_Update($id);"
+    },
+    {
+      "type": "Button",
+      "label": "Standklima Starten",
+      "onClick": "SKODA_StartClimatisation($id, 21.5);"
+    },
+    {
+      "type": "Button",
+      "label": "Standklima Stoppen",
+      "onClick": "SKODA_StopClimatisation($id);"
+    },
+    {
+      "type": "Button",
+      "label": "Ladevorgang Starten",
+      "onClick": "SKODA_StartCharging($id);"
+    },
+    {
+      "type": "Button",
+      "label": "Ladevorgang Stoppen",
+      "onClick": "SKODA_StopCharging($id);"
+    }
+  ],
+  "status": [
+    {
+      "code": 102,
+      "icon": "active",
+      "caption": "Verbindung zur MyŠkoda Public API aktiv"
+    },
+    {
+      "code": 201,
+      "icon": "error",
+      "caption": "API Key oder VIN fehlen"
+    },
+    {
+      "code": 202,
+      "icon": "error",
+      "caption": "API-Abruf oder Key-Authentifizierung fehlgeschlagen"
+    }
+  ]
+}

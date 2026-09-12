@@ -1,0 +1,13 @@
+{
+  "id": "{B2C3D4E5-F6A7-8901-2345-67890ABCDEF1}",
+  "name": "SkodaConnect",
+  "type": 3,
+  "vendor": "Skoda",
+  "aliases": [
+    "SkodaConnect"
+  ],
+  "parentRequirements": [],
+  "childRequirements": [],
+  "implemented": [],
+  "prefix": "SKODA"
+}
