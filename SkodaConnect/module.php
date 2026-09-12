@@ -33,7 +33,7 @@ class SkodaConnect extends IPSModuleStrict
         $this->SetVisualizationType(1);
     }
 
-    public function Destroy()
+    public function Destroy(): void
     {
         parent::Destroy();
     }
