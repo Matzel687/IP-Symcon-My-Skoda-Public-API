@@ -55,7 +55,10 @@ class SkodaConnect extends IPSModuleStrict
         $this->SendDebug('GetVehicles', 'Frage Fahrzeugdaten für VIN ' . $vin . ' ab...', 0);
 
         try {
-            $response = $this->SendApiRequest('/vehicles/' . $vin . '?include=status,charging,chargingProfiles,climate,parkingPosition,fuel', 'GET');
+            $response = $this->SendApiRequest(
+                '/vehicles/' . $vin . '?include=info,status,charging,chargingProfiles,airConditioning,parkingPosition,fuelStatus,odometer,operations',
+                'GET'
+            );
 
             $vehicle = $response['vehicle'] ?? $response;
             return [$vehicle];
@@ -455,15 +458,16 @@ class SkodaConnect extends IPSModuleStrict
         }
 
         // Dynamischen 'include' Parameter basierend auf den Instanz-Einstellungen aufbauen
-        $includes = ['status', 'charging', 'chargingProfiles']; // Basisumfang
+        $includes = ['info', 'status', 'charging', 'chargingProfiles']; // Basisumfang
 
         $isBEV = $this->ReadPropertyBoolean('IsBEV');
         if (!$isBEV) {
-            $includes[] = 'fuel';
+            $includes[] = 'fuelStatus';
+            $includes[] = 'odometer';
         }
 
         if ($this->ReadPropertyBoolean('EnableClimate')) {
-            $includes[] = 'climate';
+            $includes[] = 'airConditioning';
         }
 
         if ($this->ReadPropertyBoolean('EnablePosition')) {
@@ -572,10 +576,26 @@ class SkodaConnect extends IPSModuleStrict
 
             // 2. Kraftstoff & Verbrenner (nur bei Nicht-BEV)
             if (!$isBEV) {
-                if (isset($vehicle['fuel'])) {
+                if (isset($vehicle['fuelStatus'])) {
+                    $fl = $vehicle['fuelStatus'];
+
+                    if (isset($fl['primaryEngine']['level'])) {
+                        $this->SetValue('Fuel_LevelPercent', (int)$fl['primaryEngine']['level']);
+                    }
+
+                    if (isset($fl['primaryEngine']['range'])) {
+                        $this->SetValue('Fuel_CombustionRange', (int)$fl['primaryEngine']['range']);
+                    }
+                } elseif (isset($vehicle['fuel'])) {
                     $fl = $vehicle['fuel'];
-                    if (isset($fl['primaryEngine']['level'])) $this->SetValue('Fuel_LevelPercent', (int)$fl['primaryEngine']['level']);
-                    if (isset($fl['primaryEngine']['range'])) $this->SetValue('Fuel_CombustionRange', (int)$fl['primaryEngine']['range']);
+
+                    if (isset($fl['primaryEngine']['level'])) {
+                        $this->SetValue('Fuel_LevelPercent', (int)$fl['primaryEngine']['level']);
+                    }
+
+                    if (isset($fl['primaryEngine']['range'])) {
+                        $this->SetValue('Fuel_CombustionRange', (int)$fl['primaryEngine']['range']);
+                    }
                 }
 
                 if (isset($vehicle['odometer'])) {
@@ -590,8 +610,8 @@ class SkodaConnect extends IPSModuleStrict
             $this->SetValue('Status_TextHealth', $this->FormatHealthStatus($vehicle));
 
             // 4. Klimatisierung
-            if ($this->ReadPropertyBoolean('EnableClimate') && isset($vehicle['climate'])) {
-                $cl = $vehicle['climate'];
+            if ($this->ReadPropertyBoolean('EnableClimate') && isset($vehicle['airConditioning'])) {
+                $cl = $vehicle['airConditioning'];
 
                 $climateStateMap = [
                     'OFF'         => 0,
