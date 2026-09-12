@@ -157,8 +157,8 @@ class SkodaConnect extends IPSModuleStrict
         // Kraftstoff- & Kilometerstand-Variablen nur anlegen wenn es KEIN reines BEV ist
         if (!$isBEV) {
             $this->RegisterVariableInteger('Fuel_LevelPercent', $this->Translate('Tankfüllung (%)'), '~Battery.100', 6);
-            $this->RegisterVariableInteger('Fuel_CombustionRange', $this->Translate('Benzin Reichweite'), '~Distance.km', 7);
-            $this->RegisterVariableInteger('Status_Odometer', $this->Translate('Kilometerstand'), '~Distance.km', 8);
+            $this->RegisterVariableInteger('Fuel_CombustionRange', $this->Translate('Benzin Reichweite'), "", 7);
+            $this->RegisterVariableInteger('Status_Odometer', $this->Translate('Kilometerstand'), "", 8);
         } else {
             // Falls zuvor angelegt, bei BEV automatisch entfernen
             $this->UnregisterVariable('Fuel_LevelPercent');
@@ -169,7 +169,7 @@ class SkodaConnect extends IPSModuleStrict
         // Standard Statusvariablen registrieren
         $this->RegisterVariableInteger("Charging_BatteryLevel", $this->Translate("Akkustand"), "~Battery.100", 1);
 
-        $this->RegisterVariableInteger("Charging_ElectricRange", $this->Translate("Elektrische Reichweite"), "~Distance.km", 2);
+        $this->RegisterVariableInteger("Charging_ElectricRange", $this->Translate("Elektrische Reichweite"), "", 2);
 
         $this->RegisterVariableInteger("Charging_State", $this->Translate("Lade-Status"), "SKODA.ChargingState", 3);
 
