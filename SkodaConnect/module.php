@@ -28,6 +28,9 @@ class SkodaConnect extends IPSModuleStrict
 
         // Timer für automatische Datenabfrage registrieren (Standard 300 Sek.)
         $this->RegisterTimer('UpdateTimer', 0, 'SKODA_Update($_IPS['TARGET']);');
+
+        // Set visualization type to 1, as we want to offer HTML
+        $this->SetVisualizationType(1);
     }
 
     public function Destroy()
@@ -1171,5 +1174,50 @@ class SkodaConnect extends IPSModuleStrict
         $directions = ['Nord', 'Nord-Ost', 'Ost', 'Süd-Ost', 'Süd', 'Süd-West', 'West', 'Nord-West'];
         $index = (int)round($heading / 45) % 8;
         return $directions[$index];
+    }
+
+    /**
+    * If the HTML-SDK is to be used, this function must be overwritten in order to return the HTML content.
+    *
+    * @return string Initial display of a representation via HTML SDK
+    */
+    public function GetVisualizationTile(): string
+    {
+        // Add a script to set the values when loading, analogous to changes at runtime
+        // Although the return from GetFullUpdateMessage is already JSON-encoded, json_encode is still executed a second time
+        // This adds quotation marks to the string and any quotation marks within it are escaped correctly
+        $handling = '<script>handleMessage(' . json_encode($this->GetFullUpdateMessage()) . ');</script>';
+        // Add static HTML from file
+        $module = file_get_contents(__DIR__ . '/module.html');
+        // Important: $initialHandling at the end, as the handleMessage function is only defined in the HTML
+        return $module . $handling;
+    }
+
+    /**
+    * Generate a message that updates all elements in the HTML display.
+    *
+    * @return string JSON encoded message information
+    */
+    private function GetFullUpdateMessage(): string
+    {
+        // Fill resultset
+        $result = [];
+        $result['stocktext'] = $this->ReadPropertyString('StockLabel');
+        $result['stockfont'] = $this->ReadPropertyInteger('StockFont');
+        $result['trendtext'] = $this->ReadPropertyFormatted('TrendVariable');
+        $result['trendfont'] = $this->ReadPropertyInteger('TrendFont');
+        $result['trendpositive'] = $this->GetColorFormatted($this->ReadPropertyInteger('TrendPositive'));
+        $result['trendnegative'] = $this->GetColorFormatted($this->ReadPropertyInteger('TrendNegative'));
+        $result['chartline'] = $this->GetColorFormatted($this->ReadPropertyInteger('ChartLine'));
+        $result['chartperiod'] = $this->Translate(self::TWSW_MAP_PERIOD[$this->ReadPropertyInteger('ChartData')]);
+        $result['chartsmooth'] = $this->ReadPropertyBoolean('ChartSmooth');
+        $result['chartfill'] = $this->ReadPropertyBoolean('ChartFill');
+        $result['chartoffset'] = $this->ReadPropertyInteger('ChartOffset');
+        $result['chartdata'] = $this->ReadCacheArray();
+        $result['pricetext'] = $this->ReadPropertyFormatted('PriceVariable');
+        $result['pricefont'] = $this->ReadPropertyInteger('PriceFont');
+        $this->LogDebug(__FUNCTION__, $result);
+        // send it
+        return json_encode($result);
     }
 }
