@@ -44,33 +44,23 @@ class SkodaConnect extends IPSModuleStrict
     public function GetVehicles(): array
     {
         $apiKey = trim($this->ReadPropertyString('ApiKey'));
-        if (empty($apiKey)) {
-            $this->SetStatus(201); // Fehlerhafte Konfiguration
-            $this->SendDebug('Error', 'API Key nicht konfiguriert.', 0);
+        $vin = strtoupper(trim($this->ReadPropertyString('VIN')));
+
+        if (empty($apiKey) || empty($vin)) {
+            $this->SetStatus(201);
+            $this->SendDebug('Error', 'API Key oder VIN nicht konfiguriert.', 0);
             return [];
         }
 
-        $this->SendDebug('GetVehicles', 'Frage Fahrzeugliste (GET /vehicles) von Škoda API ab...', 0);
+        $this->SendDebug('GetVehicles', 'Frage Fahrzeugdaten für VIN ' . $vin . ' ab...', 0);
 
         try {
-            $response = $this->SendApiRequest('/vehicles', 'GET');
-            $vehicles = $response['vehicles'] ?? (is_array($response) ? $response : []);
+            $response = $this->SendApiRequest('/vehicles/' . $vin . '?include=status,charging,chargingProfiles,climate,parkingPosition,fuel', 'GET');
 
-            $summary = "Gefundene Fahrzeuge im Account (" . count($vehicles) . "):
-";
-            foreach ($vehicles as $car) {
-                $vin = $car['vin'] ?? 'Unbekannt';
-                $name = $car['name'] ?? 'Unbenannt';
-                $plate = $car['licensePlate'] ?? 'Kein Kennzeichen';
-                $summary .= "- ${name} | VIN: ${vin} | Kennzeichen: ${plate}
-";
-            }
-
-            $this->SendDebug('GetVehicles', $summary, 0);
-            return $vehicles;
-
+            $vehicle = $response['vehicle'] ?? $response;
+            return [$vehicle];
         } catch (Exception $e) {
-            $this->SendDebug('Error', 'Fehler beim Abruf der Fahrzeugliste: ' . $e->getMessage(), 0);
+            $this->SendDebug('Error', 'Fehler beim Abruf der Fahrzeugdaten: ' . $e->getMessage(), 0);
             return [];
         }
     }
