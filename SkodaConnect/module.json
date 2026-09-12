@@ -4,7 +4,8 @@
   "type": 3,
   "vendor": "",
   "aliases": [
-    "SkodaConnect"
+    "SkodaConnect",
+    "SkodaAPI"
   ],
   "url": "https://github.com/Matzel687/IP-Symcon-My-Skoda-Public-API",
   "parentRequirements": [],
