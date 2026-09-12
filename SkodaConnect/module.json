@@ -1,11 +1,12 @@
 {
   "id": "{39A88E4A-1AAC-CDD4-DC8D-B5FF00E435FD}",
-  "name": "IP-Symcon-My-Skoda-Public-API",
+  "name": "SkodaConnect",
   "type": 3,
   "vendor": "Skoda",
   "aliases": [
     "SkodaConnect"
   ],
+  "url": "https://github.com/Matzel687/IP-Symcon-My-Skoda-Public-API",
   "parentRequirements": [],
   "childRequirements": [],
   "implemented": [],

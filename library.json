@@ -1,10 +1,11 @@
 {
     "id": "{D7F10D88-1AE1-E777-79BB-B37D5D1A523B}",
-    "name": "IP-Symcon-My-Skoda-Public-API",
     "author": "matzel687",
-    "url": "https://github.com/Matzel687/IP-Symcon-My-Skoda-Public-API/tree/master",
+    "name": "IP-Symcon-My-Skoda-Public-API",
+    "url": "https://github.com/Matzel687/IP-Symcon-My-Skoda-Public-API/",
     "compatibility": {
-        "version": "7.1"
+        "version": "7.1",
+        "date": 0
     },
     "version": "1.1",
     "build": 0,
