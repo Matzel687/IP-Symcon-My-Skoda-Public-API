@@ -12,7 +12,7 @@ class SkodaConnect extends IPSModuleStrict
 {
     private const API_BASE_URL = 'https://public.api.connect.skoda-auto.cz/api/v1';
 
-    public function Create()
+    public function Create(): void
     {
         // Diese Zeile nicht entfernen
         parent::Create();
@@ -140,7 +140,7 @@ class SkodaConnect extends IPSModuleStrict
         }
     }
 
-    public function ApplyChanges()
+    public function ApplyChanges(): void
     {
         parent::ApplyChanges();
 
