@@ -1,9 +1,12 @@
 {
-  "id": "{A1B2C3D4-E5F6-7890-1234-567890ABCDEF}",
-  "author": "Dein Name / GitHub User",
-  "name": "IP-Symcon MySkoda Public API",
-  "url": "https://github.com/dein-user/symcon-skoda-connect",
-  "version": "1.1",
-  "build": 0,
-  "date": 1789229324
+    "id": "{B5EA5335-D688-B76B-B5CF-B6233E3B45CD}",
+    "name": "SkodaConnect",
+    "author": "matzel687",
+    "url": "https://github.com/Matzel687/IP-Symcon-My-Skoda-Public-API/tree/master",
+    "compatibility": {
+        "version": "7.1"
+    },
+    "version": "1.1",
+    "build": 0,
+    "date": 0
 }
