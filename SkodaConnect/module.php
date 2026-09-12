@@ -248,7 +248,7 @@ class SkodaConnect extends IPSModuleStrict
         $this->SetStatus(102); // Instanz aktiv
     }
 
-    public function RequestAction($Ident, $Value)
+    public function RequestAction($Ident, $Value): void
     {
         switch ($Ident) {
             case 'Climate_State':
