@@ -27,7 +27,8 @@ class SkodaConnect extends IPSModuleStrict
         $this->RegisterPropertyBoolean("EnableMap", true);
 
         // Timer für automatische Datenabfrage registrieren (Standard 300 Sek.)
-        $this->RegisterTimer("UpdateTimer", 0, "SKODA_Update($_IPS['TARGET']);");
+        $this->RegisterTimer("UpdateTimer", 300.000, "SKODA_Update(\$_IPS['TARGET']);");
+.
 
         // Set visualization type to 1, as we want to offer HTML
         $this->SetVisualizationType(1);
