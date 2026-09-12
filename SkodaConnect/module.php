@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 /**
  * SkodaConnect Class für IP-Symcon
- * Autor: Dein Name / GitHub User
+ * Autor: matzel687 / GitHub User
  * Anbindung an die offizielle MyŠkoda Public API (public.api.connect.skoda-auto.cz)
  * Inklusive dynamischer include-Filterung zur Optimierung der Payload.
  */
-class SkodaConnect extends IPSModule
+class SkodaConnect extends IPSModuleStrict
 {
     private const API_BASE_URL = 'https://public.api.connect.skoda-auto.cz/api/v1';
 

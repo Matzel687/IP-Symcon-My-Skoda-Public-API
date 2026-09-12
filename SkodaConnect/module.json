@@ -2,8 +2,9 @@
   "id": "{D7F10D88-1AE1-E777-79BB-B37D5D1A523B}",
   "name": "SkodaConnect",
   "type": 3,
-  "vendor": "",
-  "aliases": [
+  "vendor": "Matzel687",
+  "aliases": 
+  [
     "SkodaConnect",
     "SkodaAPI"
   ],
