@@ -938,28 +938,32 @@ class SkodaConnect extends IPSModuleStrict
     private function SaveRenderImage(string $renderUrl): string
     {
         try {
-            $imageData = @file_get_contents($renderUrl);
+            $imageData = @Sys_GetURLContent($renderUrl);
 
             if ($imageData === false || strlen($imageData) === 0) {
                 $this->SendDebug('SaveRenderImage', 'Renderbild konnte nicht geladen werden.', 0);
                 return '';
             }
 
-            $dir = dirname(__FILE__) . '/render';
-            if (!is_dir($dir)) {
-                mkdir($dir, 0777, true);
+            $ident = 'RenderImage';
+            $mediaId = @IPS_GetObjectIDByIdent($ident, $this->InstanceID);
+
+            if ($mediaId === false || $mediaId === 0) {
+                $mediaId = IPS_CreateMedia(1); // MEDIA_IMAGE
+                IPS_SetParent($mediaId, $this->InstanceID);
+                IPS_SetIdent($mediaId, $ident);
+                IPS_SetName($mediaId, 'Renderbild');
+
+                // Symcon-typischer Medienpfad, ohne echtes Dateisystem-Handling
+                IPS_SetMediaFile($mediaId, 'media/' . $this->InstanceID . '_' . $ident . '.png', false);
             }
 
-            $fileName = 'render_' . md5($renderUrl) . '.png';
-            $filePath = $dir . '/' . $fileName;
+            // Bild direkt in das Medienobjekt schreiben
+            IPS_SetMediaContent($mediaId, base64_encode($imageData));
 
-            if (file_put_contents($filePath, $imageData) === false) {
-                $this->SendDebug('SaveRenderImage', 'Renderbild konnte nicht gespeichert werden: ' . $filePath, 0);
-                return '';
-            }
+            $this->SendDebug('SaveRenderImage', 'Renderbild als Medienobjekt gespeichert (ID: ' . $mediaId . ').', 0);
 
-            $this->SendDebug('SaveRenderImage', 'Renderbild gespeichert unter: ' . $filePath, 0);
-            return $filePath;
+            return (string)$mediaId;
         } catch (Exception $e) {
             $this->SendDebug('SaveRenderImage', 'Fehler beim Speichern des Renderbilds: ' . $e->getMessage(), 0);
             return '';
@@ -1050,6 +1054,16 @@ class SkodaConnect extends IPSModuleStrict
         return 'image/png';
     }
 
+    private function DetectMimeTypeFromData(string $data): string
+    {
+        $info = @getimagesizefromstring($data);
+        if (is_array($info) && isset($info['mime']) && is_string($info['mime'])) {
+            return $info['mime'];
+        }
+
+        return 'image/png';
+    }
+
     /**
     * If the HTML-SDK is to be used, this function must be overwritten in order to return the HTML content.
     *
@@ -1057,18 +1071,45 @@ class SkodaConnect extends IPSModuleStrict
     */
     public function GetVisualizationTile(): string
     {
-        $imagePath = $this->GetValue('Status_RenderImagePath');
+        $renderValue = $this->GetValue('Status_RenderImagePath');
 
-        if (empty($imagePath) || !is_file($imagePath)) {
+        $imageData = null;
+        $mime = 'image/png';
+
+        // Medienobjekt-ID aus dem Modul-Variable
+        if (is_numeric($renderValue) && (int)$renderValue > 0) {
+            try {
+                $mediaContent = IPS_GetMediaContent((int)$renderValue);
+
+                if (is_string($mediaContent) && $mediaContent !== '') {
+                    $decoded = base64_decode($mediaContent, true);
+
+                    if ($decoded !== false) {
+                        $imageData = $decoded;
+                    } else {
+                        $imageData = $mediaContent;
+                    }
+
+                    $mime = $this->DetectMimeTypeFromData($imageData);
+                }
+            } catch (Exception $e) {
+                $this->SendDebug('GetVisualizationTile', 'Fehler beim Laden des Medienobjekts: ' . $e->getMessage(), 0);
+            }
+        } else {
+            // Fallback für alte Dateipfade
+            $imagePath = (string)$renderValue;
+            if (!empty($imagePath) && is_file($imagePath)) {
+                $imageData = @file_get_contents($imagePath);
+                if ($imageData !== false) {
+                    $mime = $this->DetectMimeType($imagePath);
+                }
+            }
+        }
+
+        if ($imageData === null || $imageData === false || strlen($imageData) === 0) {
             return '<div style="padding:12px;color:#64748b;">Noch kein Fahrzeugbild verfügbar.</div>';
         }
 
-        $imageData = @file_get_contents($imagePath);
-        if ($imageData === false) {
-            return '<div style="padding:12px;color:#b91c1c;">Bild konnte nicht geladen werden.</div>';
-        }
-
-        $mime = $this->DetectMimeType($imagePath);
         $dataUri = 'data:' . $mime . ';base64,' . base64_encode($imageData);
 
         return '
