@@ -625,6 +625,7 @@ class SkodaConnect extends IPSModuleStrict
                     $heading = isset($parkingPosition['heading']) ? (int)$parkingPosition['heading'] : 0;
                     $timestamp = isset($parkingPosition['carCapturedTimestamp']) ? (string)$parkingPosition['carCapturedTimestamp'] : '';
                     $type = isset($parkingPosition['state']) ? (string)$parkingPosition['state'] : 'PARKING_POSITION';
+                    $formattedAddress = (string)($parkingPosition['formattedAddress'] ?? '');
 
                     $this->SetValue('Position_Latitude', $lat);
                     $this->SetValue('Position_Longitude', $lon);
@@ -635,7 +636,7 @@ class SkodaConnect extends IPSModuleStrict
                     if ($this->ReadPropertyBoolean('EnableMap')) {
                         $this->SetValue(
                             'Position_Map',
-                            $this->BuildOpenStreetMapIframeHtml($lat, $lon, $heading, $timestamp, $type)
+                            $this->BuildOpenStreetMapIframeHtml($lat, $lon, $heading, $timestamp, $type, $formattedAddress)
                         );
                     }
                 }
@@ -1077,12 +1078,21 @@ class SkodaConnect extends IPSModuleStrict
         ';
     }
 
-    private function BuildOpenStreetMapIframeHtml(float $lat, float $lon, int $heading, string $timestamp, string $type): string
+    private function BuildOpenStreetMapIframeHtml(float $lat, float $lon, int $heading, string $timestamp, string $type, string $formattedAddress = ''): string
     {
         $embedUrl = $this->BuildOpenStreetMapUrl($lat, $lon);
 
         $direction = $this->GetHeadingDirectionText($heading);
         $timestampText = !empty($timestamp) ? htmlspecialchars($timestamp, ENT_QUOTES, 'UTF-8') : 'unbekannt';
+
+        $addressHtml = '';
+        if (!empty($formattedAddress)) {
+            $addressHtml = '
+                <div style="padding-top:6px;">
+                    <strong>Adresse:</strong> ' . htmlspecialchars($formattedAddress, ENT_QUOTES, 'UTF-8') . '
+                </div>
+            ';
+        }
 
         return '
             <div style="padding:8px;">
@@ -1095,6 +1105,7 @@ class SkodaConnect extends IPSModuleStrict
                     <strong>Typ:</strong> ' . htmlspecialchars($type, ENT_QUOTES, 'UTF-8') . '<br>
                     <strong>Ausrichtung:</strong> ' . $heading . '° (' . $direction . ')<br>
                     <strong>Zeitstempel:</strong> ' . $timestampText . '
+                    ' . $addressHtml . '
                 </div>
             </div>
         ';
