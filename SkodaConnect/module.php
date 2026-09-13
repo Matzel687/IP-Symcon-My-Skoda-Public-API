@@ -39,8 +39,10 @@ class SkodaConnect extends IPSModuleStrict
         $this->RegisterPropertyBoolean("EnablePosition", true);
         $this->RegisterPropertyBoolean("EnableMap", true);
 
-        // Timer für automatische Datenabfrage registrieren (Standard 300 Sek.)
-        $this->RegisterTimer("UpdateTimer", 300.000, "SKODA_Update(\$_IPS['TARGET']);");
+        // Timer für automatische Datenabfrage registrieren
+        // UpdateInterval wird in Sekunden gespeichert, RegisterTimer erwartet Millisekunden
+        $initialInterval = max(300, $this->ReadPropertyInteger('UpdateInterval')) * 1000;
+        $this->RegisterTimer("UpdateTimer", $initialInterval, "SKODA_Update(\$_IPS['TARGET']);");
 
         // Set visualization type to 1, as we want to offer HTML
         $this->SetVisualizationType(1);
@@ -187,7 +189,7 @@ class SkodaConnect extends IPSModuleStrict
         $this->RegisterVariableInteger("Charging_TargetSoC", $this->Translate("Ziel-SoC"), "", 4);
 
         $this->RegisterVariableString("Charging_ProfilesJson", $this->Translate("Ladeprofile JSON"), "", 30);
-        $this->RegisterVariableString("Charging_ProfilesHtml", $this->Translate("Ladeprofile HTML"), "", 31);
+        $this->RegisterVariableString("Charging_ProfilesHtml", $this->Translate("Ladeprofile HTML"), "~HTMLBox", 31);
 
         $this->RegisterVariableString("Status_RenderUrl", $this->Translate("Render URL"), "", 39);
         $this->RegisterVariableString("Status_FormattedAddress", $this->Translate("Adresse"), "", 41);
