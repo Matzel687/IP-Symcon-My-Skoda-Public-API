@@ -21,6 +21,19 @@ class SkodaConnect extends IPSModuleStrict
         $this->RegisterPropertyString("ApiKey", "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
         $this->RegisterPropertyString("VIN", "TMBJJ7NS1L0000000");
         $this->RegisterPropertyInteger("UpdateInterval", 300);
+
+        // API-include-Filter
+        $this->RegisterPropertyBoolean("IncludeInfo", true);
+        $this->RegisterPropertyBoolean("IncludeStatus", true);
+        $this->RegisterPropertyBoolean("IncludeFuelStatus", true);
+        $this->RegisterPropertyBoolean("IncludeOdometer", true);
+        $this->RegisterPropertyBoolean("IncludeParkingPosition", true);
+        $this->RegisterPropertyBoolean("IncludeAirConditioning", true);
+        $this->RegisterPropertyBoolean("IncludeCharging", true);
+        $this->RegisterPropertyBoolean("IncludeChargingProfiles", true);
+        $this->RegisterPropertyBoolean("IncludeOperations", true);
+
+        // Sonstige Optionen
         $this->RegisterPropertyBoolean("IsBEV", false);
         $this->RegisterPropertyBoolean("EnableClimate", true);
         $this->RegisterPropertyBoolean("EnablePosition", true);
@@ -434,20 +447,44 @@ class SkodaConnect extends IPSModuleStrict
         }
 
         // Dynamischen 'include' Parameter basierend auf den Instanz-Einstellungen aufbauen
-        $includes = ['info', 'status', 'charging', 'chargingProfiles']; // Basisumfang
+        $includes = [];
 
-        $isBEV = $this->ReadPropertyBoolean('IsBEV');
-        if (!$isBEV) {
+        if ($this->ReadPropertyBoolean('IncludeInfo')) {
+            $includes[] = 'info';
+        }
+        if ($this->ReadPropertyBoolean('IncludeStatus')) {
+            $includes[] = 'status';
+        }
+        if ($this->ReadPropertyBoolean('IncludeFuelStatus')) {
             $includes[] = 'fuelStatus';
+        }
+        if ($this->ReadPropertyBoolean('IncludeOdometer')) {
             $includes[] = 'odometer';
         }
-
-        if ($this->ReadPropertyBoolean('EnableClimate')) {
+        if ($this->ReadPropertyBoolean('IncludeParkingPosition')) {
+            $includes[] = 'parkingPosition';
+        }
+        if ($this->ReadPropertyBoolean('IncludeAirConditioning')) {
             $includes[] = 'airConditioning';
         }
+        if ($this->ReadPropertyBoolean('IncludeCharging')) {
+            $includes[] = 'charging';
+        }
+        if ($this->ReadPropertyBoolean('IncludeChargingProfiles')) {
+            $includes[] = 'chargingProfiles';
+        }
+        if ($this->ReadPropertyBoolean('IncludeOperations')) {
+            $includes[] = 'operations';
+        }
 
-        if ($this->ReadPropertyBoolean('EnablePosition')) {
-            $includes[] = 'parkingPosition';
+        // Für Sicherheit: wenn keine Option gesetzt ist, Standardliste verwenden
+        if (empty($includes)) {
+            $includes = ['info', 'status', 'charging', 'chargingProfiles', 'airConditioning', 'parkingPosition', 'fuelStatus', 'odometer', 'operations'];
+        }
+
+        // BEV: fuelStatus entfällt automatisch
+        if ($this->ReadPropertyBoolean('IsBEV')) {
+            $includes = array_values(array_filter($includes, fn($item) => $item !== 'fuelStatus'));
         }
 
         $queryString = '?include=' . implode(',', $includes);

@@ -28,28 +28,59 @@
           "suffix": "sek"
         },
         {
-          "type": "Label",
-          "caption": "Hinweis Rate Limit (20 Anfragen / Stunde): Das Abfrageintervall muss mindestens 300 Sekunden (5 Minuten) betragen."
+          "type": "CheckBox",
+          "name": "IncludeInfo",
+          "caption": "info abfragen"
+        },
+        {
+          "type": "CheckBox",
+          "name": "IncludeStatus",
+          "caption": "status abfragen"
+        },
+        {
+          "type": "CheckBox",
+          "name": "IncludeFuelStatus",
+          "caption": "fuelStatus abfragen"
+        },
+        {
+          "type": "CheckBox",
+          "name": "IncludeOdometer",
+          "caption": "odometer abfragen"
+        },
+        {
+          "type": "CheckBox",
+          "name": "IncludeParkingPosition",
+          "caption": "parkingPosition abfragen"
+        },
+        {
+          "type": "CheckBox",
+          "name": "IncludeAirConditioning",
+          "caption": "airConditioning abfragen"
+        },
+        {
+          "type": "CheckBox",
+          "name": "IncludeCharging",
+          "caption": "charging abfragen"
+        },
+        {
+          "type": "CheckBox",
+          "name": "IncludeChargingProfiles",
+          "caption": "chargingProfiles abfragen"
+        },
+        {
+          "type": "CheckBox",
+          "name": "IncludeOperations",
+          "caption": "operations abfragen"
         },
         {
           "type": "CheckBox",
           "name": "IsBEV",
-          "caption": "Reines Battery Electric Vehicle (BEV - blendet Kraftstoff aus API-include-Filter aus)"
-        },
-        {
-          "type": "CheckBox",
-          "name": "EnableClimate",
-          "caption": "Klimatisierungsdaten abfragen"
-        },
-        {
-          "type": "CheckBox",
-          "name": "EnablePosition",
-          "caption": "Parkposition abfragen"
+          "caption": "Reines Battery Electric Vehicle (BEV)"
         },
         {
           "type": "CheckBox",
           "name": "EnableMap",
-          "caption": "Interaktive Karte (OpenStreetMap in HTMLBox) erzeugen"
+          "caption": "Interaktive Karte (OpenStreetMap) erzeugen"
         }
       ]
     }
