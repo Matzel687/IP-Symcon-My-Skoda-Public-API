@@ -155,60 +155,34 @@ class SkodaConnect extends IPSModuleStrict
         // Prüfen, ob "Reines Battery Electric Vehicle (BEV)" aktiviert ist
         $isBEV = $this->ReadPropertyBoolean('IsBEV');
 
-        // Kraftstoff- & Kilometerstand-Variablen nur anlegen wenn es KEIN reines BEV ist
+        // Kilometerstand immer registrieren
+        $this->RegisterVariableInteger('Status_Odometer', $this->Translate('Kilometerstand'), "", 8);
+
+        // Kraftstoff-Variablen nur bei Nicht-BEV
         if (!$isBEV) {
             $this->RegisterVariableInteger('Fuel_LevelPercent', $this->Translate('Tankfüllung (%)'), '~Battery.100', 6);
             $this->RegisterVariableInteger('Fuel_CombustionRange', $this->Translate('Benzin Reichweite'), "", 7);
-            $this->RegisterVariableInteger('Status_Odometer', $this->Translate('Kilometerstand'), "", 8);
         } else {
-            // Falls zuvor angelegt, bei BEV automatisch entfernen
             $this->UnregisterVariable('Fuel_LevelPercent');
             $this->UnregisterVariable('Fuel_CombustionRange');
-            $this->UnregisterVariable('Status_Odometer');
         }
 
         // Standard Statusvariablen registrieren
         $this->RegisterVariableInteger("Charging_BatteryLevel", $this->Translate("Akkustand"), "~Battery.100", 1);
-
         $this->RegisterVariableInteger("Charging_ElectricRange", $this->Translate("Elektrische Reichweite"), "", 2);
-
         $this->RegisterVariableInteger("Charging_State", $this->Translate("Lade-Status"), "SKODA.ChargingState", 3);
 
-        $this->RegisterVariableInteger("Charging_PlugState", $this->Translate("Kabel- & Steckerstatus"), "SKODA.PlugState", 26);
-
-        $this->RegisterVariableFloat("Charging_Power", $this->Translate("Ladeleistung"), "", 27);
-
-        $this->RegisterVariableFloat("Charging_Rate", $this->Translate("Ladegeschwindigkeit (km/h)"), "", 28);
-
-        $this->RegisterVariableFloat("Charging_RemainingTime", $this->Translate("Restladezeit (Minuten)"), "", 29);
-
-        $this->RegisterVariableInteger("Charging_TargetSoC", $this->Translate("Ziel-Ladezustand (%)"), "SKODA.TargetSoC", 4);
-        $this->EnableAction("Charging_TargetSoC");
-
-        $this->RegisterVariableBoolean("Charging_Active", $this->Translate("Ladevorgang Aktiv"), "~Switch", 5);
-        $this->EnableAction("Charging_Active");
-
-        $this->RegisterVariableInteger("Charging_ChargeMode", $this->Translate("Lademodus"), "SKODA.ChargeMode", 21);
-        $this->EnableAction("Charging_ChargeMode");
-
-        $this->RegisterVariableString("Charging_TextStatus", $this->Translate("Lade-Zusammenfassung (Klartext)"), "", 30);
-
-        $this->RegisterVariableString("Charging_ProfilesJson", $this->Translate("Ladeprofile (JSON)"), "", 37);
-
-        $this->RegisterVariableString("Charging_ProfilesHtml", $this->Translate("Ladeprofile (HTML)"), "~HTMLBox", 38);
+        $this->RegisterVariableString("Status_RenderUrl", $this->Translate("Render URL"), "", 39);
+        $this->RegisterVariableString("Status_RenderImagePath", $this->Translate("Render Bildpfad"), "", 40);
+        $this->RegisterVariableString("Status_FormattedAddress", $this->Translate("Adresse"), "", 41);
 
         $this->RegisterVariableString("Status_VIN", $this->Translate("Fahrgestellnummer (VIN)"), "", 34);
-
         $this->RegisterVariableString("Status_VehicleName", $this->Translate("Fahrzeugname"), "", 35);
-
         $this->RegisterVariableString("Status_LicensePlate", $this->Translate("Kennzeichen"), "", 36);
 
         $this->RegisterVariableString("Status_TextDoors", $this->Translate("Türen & Schließstatus (Klartext)"), "", 9);
-
         $this->RegisterVariableString("Status_TextWindows", $this->Translate("Fenster & Schiebedach (Klartext)"), "", 10);
-
         $this->RegisterVariableString("Status_TextLights", $this->Translate("Beleuchtung (Klartext)"), "", 11);
-
         $this->RegisterVariableString("Status_TextHealth", $this->Translate("Fahrzeugzustand & Warnungen"), "", 12);
 
         $this->RegisterVariableInteger("Climate_State", $this->Translate("Klimatisierung Status"), "SKODA.ClimateState", 13);
@@ -233,17 +207,11 @@ class SkodaConnect extends IPSModuleStrict
         $this->RegisterVariableString("Climate_TextHeating", $this->Translate("Heizungen Status (Klartext)"), "", 25);
 
         $this->RegisterVariableFloat("Position_Latitude", $this->Translate("Breitengrad (Lat)"), "", 17);
-
         $this->RegisterVariableFloat("Position_Longitude", $this->Translate("Längengrad (Lon)"), "", 18);
-
         $this->RegisterVariableInteger("Position_Heading", $this->Translate("Fahrzeugausrichtung (Heading)"), "", 31);
-
         $this->RegisterVariableString("Position_Timestamp", $this->Translate("Zeitstempel Parkposition"), "", 32);
-
         $this->RegisterVariableString("Position_Type", $this->Translate("Standort-Typ"), "", 33);
-
         $this->RegisterVariableString("Position_Map", $this->Translate("Fahrzeug Standorts-Karte"), "~HTMLBox", 20);
-
         $this->RegisterVariableInteger("API_RateLimitRemaining", $this->Translate("Verbleibende API-Anfragen"), "SKODA.APIRateLimitRemaining", 19);
 
         $this->SetStatus(102); // Instanz aktiv
@@ -499,6 +467,9 @@ class SkodaConnect extends IPSModuleStrict
             $vehicle = is_array($response) && isset($response['vehicle']) ? $response['vehicle'] : $response;
 
             $this->SendDebug('Update', 'Vehicle Payload: ' . json_encode($vehicle, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), 0);
+
+            $parkingPosition = $vehicle['parkingPosition'] ?? [];
+            $gpsCoordinates = $parkingPosition['gpsCoordinates'] ?? [];
 
             // 0. Fahrzeug-Stammdaten
             if (isset($vehicle['name'])) {
@@ -1028,14 +999,25 @@ class SkodaConnect extends IPSModuleStrict
     */
     public function GetVisualizationTile(): string
     {
-        // Add a script to set the values when loading, analogous to changes at runtime
-        // Although the return from GetFullUpdateMessage is already JSON-encoded, json_encode is still executed a second time
-        // This adds quotation marks to the string and any quotation marks within it are escaped correctly
-        $handling = '<script>handleMessage(' . json_encode($this->GetFullUpdateMessage()) . ');</script>';
-        // Add static HTML from file
-        $module = file_get_contents(__DIR__ . '/module.html');
-        // Important: $initialHandling at the end, as the handleMessage function is only defined in the HTML
-        return $module . $handling;
+        $imagePath = $this->GetValue('Status_RenderImagePath');
+
+        if (empty($imagePath) || !is_file($imagePath)) {
+            return '<div style="padding:12px;color:#64748b;">Noch kein Fahrzeugbild verfügbar.</div>';
+        }
+
+        $imageData = @file_get_contents($imagePath);
+        if ($imageData === false) {
+            return '<div style="padding:12px;color:#b91c1c;">Bild konnte nicht geladen werden.</div>';
+        }
+
+        $mime = mime_content_type($imagePath) ?: 'image/png';
+        $dataUri = 'data:' . $mime . ';base64,' . base64_encode($imageData);
+
+        return '
+            <div style="padding:8px;">
+                <img src="' . $dataUri . '" style="width:100%;max-width:100%;height:auto;border-radius:12px;display:block;" />
+            </div>
+        ';
     }
 
     /**

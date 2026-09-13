@@ -39,12 +39,12 @@
         {
           "type": "CheckBox",
           "name": "EnableClimate",
-          "caption": "Klimatisierungsdaten abfragen (?include=climate)"
+          "caption": "Klimatisierungsdaten abfragen"
         },
         {
           "type": "CheckBox",
           "name": "EnablePosition",
-          "caption": "Parkposition abfragen (?include=parkingPosition)"
+          "caption": "Parkposition abfragen"
         },
         {
           "type": "CheckBox",
@@ -57,23 +57,18 @@
   "actions": [
     {
       "type": "Button",
-      "label": "Fahrzeuge im Account auflisten (GET /vehicles)",
-      "onClick": "SKODA_GetVehicles($id);"
+      "label": "Fahrzeugdaten für konfigurierte VIN abrufen (GET /vehicles/{vin})",
+      "onClick": "SKODA_Update($id);"
     },
     {
       "type": "Button",
-      "label": "Ladeprofile abrufen (GET /vehicles?include=chargingProfiles)",
+      "label": "Ladeprofile abrufen (GET /vehicles/{vin}?include=chargingProfiles)",
       "onClick": "SKODA_GetChargingProfiles($id);"
     },
     {
       "type": "Button",
       "label": "Aktuelles Ladeprofil an API senden",
       "onClick": "SKODA_UpdateChargingProfile($id, IPS_GetVariable($id)['Charging_ProfilesJson']);"
-    },
-    {
-      "type": "Button",
-      "label": "Fahrzeugdaten jetzt abfragen",
-      "onClick": "SKODA_Update($id);"
     },
     {
       "type": "Button",
