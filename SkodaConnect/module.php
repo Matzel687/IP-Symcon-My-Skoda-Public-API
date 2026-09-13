@@ -500,133 +500,41 @@ class SkodaConnect extends IPSModuleStrict
 
             $this->SendDebug('Update', 'Vehicle Payload: ' . json_encode($vehicle, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), 0);
 
-            $status = $vehicle['status'] ?? [];
-            $overall = $status['overall'] ?? [];
-            $detail  = $status['detail'] ?? [];
-
-            $charging = $vehicle['charging'] ?? [];
-            $chargingSettings = $charging['settings'] ?? [];
-            $chargingStatus = $charging['status'] ?? [];
-            $battery = $chargingStatus['battery'] ?? [];
-
-            $airConditioning = $vehicle['airConditioning'] ?? [];
-            $parkingPosition = $vehicle['parkingPosition'] ?? [];
-            $gpsCoordinates = $parkingPosition['gpsCoordinates'] ?? [];
-
             // 0. Fahrzeug-Stammdaten
-            if (isset($vehicle['vin'])) {
-                $this->SetValue('Status_VIN', (string)$vehicle['vin']);
-            }
             if (isset($vehicle['name'])) {
                 $this->SetValue('Status_VehicleName', (string)$vehicle['name']);
             }
+
             if (isset($vehicle['licensePlate'])) {
                 $this->SetValue('Status_LicensePlate', (string)$vehicle['licensePlate']);
             }
 
-            // 1. Batterie & Laden
-            if (!empty($battery)) {
-                if (isset($battery['stateOfChargeInPercent'])) {
-                    $this->SetValue('Charging_BatteryLevel', (int)$battery['stateOfChargeInPercent']);
-                }
-
-                if (isset($battery['remainingCruisingRangeInMeters'])) {
-                    $rangeKm = (int)round((float)$battery['remainingCruisingRangeInMeters'] / 1000);
-                    $this->SetValue('Charging_ElectricRange', $rangeKm);
-                }
+            if (isset($vehicle['vin'])) {
+                $this->SetValue('Status_VIN', (string)$vehicle['vin']);
             }
 
-            if (isset($chargingSettings['targetStateOfChargeInPercent'])) {
-                $this->SetValue('Charging_TargetSoC', (int)$chargingSettings['targetStateOfChargeInPercent']);
-            }
+            // 1. Render URL und PNG speichern
+            if (isset($vehicle['renderUrl']) && !empty($vehicle['renderUrl'])) {
+                $renderUrl = (string)$vehicle['renderUrl'];
+                $this->SetValue('Status_RenderUrl', $renderUrl);
 
-            if (isset($chargingStatus['chargePowerInKw'])) {
-                $this->SetValue('Charging_Power', (float)$chargingStatus['chargePowerInKw']);
-            }
-
-            if (isset($chargingStatus['remainingTimeToFullyChargedInMinutes'])) {
-                $this->SetValue('Charging_RemainingTime', (float)$chargingStatus['remainingTimeToFullyChargedInMinutes']);
-            }
-
-            if (isset($chargingStatus['state'])) {
-                $stateStr = strtoupper((string)$chargingStatus['state']);
-
-                $chargingStateMap = [
-                    'OFF'               => 0,
-                    'NOT_CHARGING'      => 0,
-                    'CONNECT_CABLE'     => 0,
-                    'CONNECTED'         => 0,
-                    'CHARGING'          => 1,
-                    'READY_FOR_CHARGING'=> 2,
-                    'CONSERVATION'      => 3,
-                    'CHARGE_PURPOSE_REACHED' => 3,
-                    'ERROR'             => 4,
-                    'FAULT'             => 4
-                ];
-
-                $stateInt = $chargingStateMap[$stateStr] ?? 0;
-                $this->SetValue('Charging_State', $stateInt);
-                $this->SetValue('Charging_Active', $stateInt === 1);
-            }
-
-            // 2. Kraftstoff & Verbrenner (nur bei Nicht-BEV)
-            if (!$isBEV && isset($vehicle['fuelStatus'])) {
-                $fl = $vehicle['fuelStatus'];
-
-                if (isset($fl['primaryEngine']['level'])) {
-                    $this->SetValue('Fuel_LevelPercent', (int)$fl['primaryEngine']['level']);
-                }
-
-                if (isset($fl['primaryEngine']['range'])) {
-                    $this->SetValue('Fuel_CombustionRange', (int)$fl['primaryEngine']['range']);
+                $imagePath = $this->SaveRenderImage($renderUrl);
+                if ($imagePath !== '') {
+                    $this->SetValue('Status_RenderImagePath', $imagePath);
                 }
             }
 
-            if (!$isBEV && isset($vehicle['odometer']['mileageInKm'])) {
+            // 2. Adresse
+            if (isset($vehicle['parkingPosition']['formattedAddress']) && !empty($vehicle['parkingPosition']['formattedAddress'])) {
+                $this->SetValue('Status_FormattedAddress', (string)$vehicle['parkingPosition']['formattedAddress']);
+            }
+
+            // 3. Kilometerstand
+            if (isset($vehicle['odometer']['mileageInKm'])) {
                 $this->SetValue('Status_Odometer', (int)$vehicle['odometer']['mileageInKm']);
             }
 
-            // 3. Fahrzeugzustand & Klartext
-            $this->SetValue('Status_TextDoors', $this->FormatDoorsStatus($overall, $detail));
-            $this->SetValue('Status_TextWindows', $this->FormatWindowsStatus($overall, $detail));
-            $this->SetValue('Status_TextLights', $this->FormatLightsStatus($overall, $detail));
-            $this->SetValue('Status_TextHealth', $this->FormatHealthStatus($vehicle));
-
-            // 4. Klimatisierung
-            if ($this->ReadPropertyBoolean('EnableClimate') && !empty($airConditioning)) {
-                $cl = $airConditioning;
-
-                $climateStateMap = [
-                    'OFF' => 0,
-                    'HEATING' => 1,
-                    'COOLING' => 2,
-                    'VENTILATION' => 3
-                ];
-
-                if (isset($cl['state'])) {
-                    $stateStr = strtoupper((string)$cl['state']);
-                    $stateInt = $climateStateMap[$stateStr] ?? 0;
-                    $this->SetValue('Climate_State', $stateInt);
-                    $this->SetValue('Climate_Active', $stateInt > 0);
-                }
-
-                if (isset($cl['targetTemperature']['value'])) {
-                    $this->SetValue('Climate_TargetTemperature', (float)$cl['targetTemperature']['value']);
-                }
-
-                $this->SetValue('Climate_TextHeating', $this->FormatHeatingStatus($cl));
-
-                if (isset($cl['windowHeating'])) {
-                    $wh = $cl['windowHeating'];
-                    $frontOn = isset($wh['front']) && strtoupper((string)$wh['front']) === 'ON';
-                    $rearOn = isset($wh['rear']) && strtoupper((string)$wh['rear']) === 'ON';
-
-                    $this->SetValue('Climate_WindowHeatingFront', $frontOn);
-                    $this->SetValue('Climate_WindowHeatingRear', $rearOn);
-                }
-            }
-
-            // 5. Ladeprofile
+            // 4. Ladeprofile
             if (isset($vehicle['chargingProfiles'])) {
                 $chargingProfiles = $vehicle['chargingProfiles'];
                 $profiles = $chargingProfiles['profiles'] ?? [];
@@ -644,7 +552,7 @@ class SkodaConnect extends IPSModuleStrict
                 $this->SetValue('Charging_ProfilesHtml', '<div style="padding:12px;color:#64748b;">Keine Ladeprofile verfügbar.</div>');
             }
 
-            // 6. Parkposition
+            // 5. Parkposition
             if ($this->ReadPropertyBoolean('EnablePosition') && !empty($gpsCoordinates)) {
                 $lat = (float)($gpsCoordinates['latitude'] ?? 0);
                 $lon = (float)($gpsCoordinates['longitude'] ?? 0);
@@ -959,6 +867,37 @@ class SkodaConnect extends IPSModuleStrict
         return '<div style="font-family:Segoe UI,sans-serif;padding:8px;">' . implode('', $cards) . '</div>';
     }
 
+    private function SaveRenderImage(string $renderUrl): string
+    {
+        try {
+            $imageData = @file_get_contents($renderUrl);
+
+            if ($imageData === false || strlen($imageData) === 0) {
+                $this->SendDebug('SaveRenderImage', 'Renderbild konnte nicht geladen werden.', 0);
+                return '';
+            }
+
+            $dir = dirname(__FILE__) . '/render';
+            if (!is_dir($dir)) {
+                mkdir($dir, 0777, true);
+            }
+
+            $fileName = 'render_' . md5($renderUrl) . '.png';
+            $filePath = $dir . '/' . $fileName;
+
+            if (file_put_contents($filePath, $imageData) === false) {
+                $this->SendDebug('SaveRenderImage', 'Renderbild konnte nicht gespeichert werden: ' . $filePath, 0);
+                return '';
+            }
+
+            $this->SendDebug('SaveRenderImage', 'Renderbild gespeichert unter: ' . $filePath, 0);
+            return $filePath;
+        } catch (Exception $e) {
+            $this->SendDebug('SaveRenderImage', 'Fehler beim Speichern des Renderbilds: ' . $e->getMessage(), 0);
+            return '';
+        }
+    }
+
     private function SendApiRequest(string $endpoint, string $method = 'GET', $payload = null)
     {
         $apiKey = trim($this->ReadPropertyString('ApiKey'));
@@ -1125,5 +1064,20 @@ class SkodaConnect extends IPSModuleStrict
         $this->LogDebug(__FUNCTION__, $result);
         // send it
         return json_encode($result);
+    }
+
+    private function BuildOpenStreetMapUrl(float $lat, float $lon): string
+    {
+        $bbox = [
+            $lon - 0.005,
+            $lat - 0.005,
+            $lon + 0.005,
+            $lat + 0.005
+        ];
+
+        return 'https://www.openstreetmap.org/export/embed.html?bbox='
+            . implode(',', $bbox)
+            . '&layer=mapnik&marker='
+            . $lat . ',' . $lon;
     }
 }
