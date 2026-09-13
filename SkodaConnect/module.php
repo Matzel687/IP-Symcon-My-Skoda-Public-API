@@ -1098,13 +1098,13 @@ class SkodaConnect extends IPSModuleStrict
             <div style="padding:8px;">
                 <iframe
                     src="' . $embedUrl . '"
-                    style="width:100%;height:320px;border:0;border-radius:12px;box-shadow:0 10px 24px rgba(15,23,42,0.08);">
+                    style="width:100%;height:100%;border:0;border-radius:12px;display:block;box-shadow:0 10px 24px rgba(15,23,42,0.08);">
                 </iframe>
 
-                <div style="padding:8px 0 0 0;font-family:Segoe UI, sans-serif;font-size:12px;color:#334155;">
-                    <strong>Typ:</strong> ' . htmlspecialchars($type, ENT_QUOTES, 'UTF-8') . '<br>
-                    <strong>Ausrichtung:</strong> ' . $heading . '° (' . $direction . ')<br>
-                    <strong>Zeitstempel:</strong> ' . $timestampText . '
+                <div style="margin-top:10px;padding:12px;border:1px solid #d1d5db;border-radius:12px;background:#ffffff;box-shadow:0 4px 12px rgba(15,23,42,0.04);font-family:Segoe UI, sans-serif;font-size:12px;color:#334155;">
+                    <div><strong>Typ:</strong> ' . htmlspecialchars($type, ENT_QUOTES, 'UTF-8') . '</div>
+                    <div style="padding-top:4px;"><strong>Ausrichtung:</strong> ' . $heading . '° (' . $direction . ')</div>
+                    <div style="padding-top:4px;"><strong>Zeitstempel:</strong> ' . $timestampText . '</div>
                     ' . $addressHtml . '
                 </div>
             </div>
@@ -1114,10 +1114,10 @@ class SkodaConnect extends IPSModuleStrict
     private function BuildOpenStreetMapUrl(float $lat, float $lon): string
     {
         $bbox = [
-            $lon - 0.005,
-            $lat - 0.005,
-            $lon + 0.005,
-            $lat + 0.005
+            $lon - 0.003,
+            $lat - 0.003,
+            $lon + 0.003,
+            $lat + 0.003
         ];
 
         return 'https://www.openstreetmap.org/export/embed.html?bbox='
