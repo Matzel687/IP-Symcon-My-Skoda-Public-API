@@ -18,7 +18,7 @@ class SkodaConnect extends IPSModuleStrict
         parent::Create();
 
         // Eigenschaften registrieren
-        $this->RegisterPropertyString("ApiKey", "");
+        $this->RegisterPropertyString("ApiKey", "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
         $this->RegisterPropertyString("VIN", "TMBJJ7NS1L0000000");
         $this->RegisterPropertyInteger("UpdateInterval", 300);
         $this->RegisterPropertyBoolean("IsBEV", false);
@@ -61,6 +61,9 @@ class SkodaConnect extends IPSModuleStrict
             );
 
             $vehicle = $response['vehicle'] ?? $response;
+
+            $this->SendDebug('GetVehicles', 'Raw-Response: ' . json_encode($vehicle, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), 0);
+
             return [$vehicle];
         } catch (Exception $e) {
             $this->SendDebug('Error', 'Fehler beim Abruf der Fahrzeugdaten: ' . $e->getMessage(), 0);
@@ -488,6 +491,7 @@ class SkodaConnect extends IPSModuleStrict
             }
 
             $vehicle = $response['vehicle'];
+            $this->SendDebug('Update', 'Vehicle Payload: ' . json_encode($vehicle, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), 0);
 
             // 0. Fahrzeug-Stammdaten
             if (isset($vehicle['vin'])) {
