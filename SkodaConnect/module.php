@@ -635,12 +635,7 @@ class SkodaConnect extends IPSModuleStrict
                     if ($this->ReadPropertyBoolean('EnableMap')) {
                         $this->SetValue(
                             'Position_Map',
-                            '<div style="padding:8px;">'
-                            . '<a href="' . $this->BuildOpenStreetMapUrl($lat, $lon) . '" target="_blank" '
-                            . 'style="display:inline-block;padding:10px 14px;background:#0ea5e9;color:#fff;border-radius:10px;text-decoration:none;font-weight:600;">'
-                            . 'OpenStreetMap öffnen'
-                            . '</a>'
-                            . '</div>'
+                            $this->BuildOpenStreetMapLinkHtml($lat, $lon)
                         );
                     }
                 }
@@ -1171,6 +1166,20 @@ class SkodaConnect extends IPSModuleStrict
         return json_encode($result);
     }
 
+    private function BuildOpenStreetMapLinkHtml(float $lat, float $lon): string
+    {
+        $url = $this->BuildOpenStreetMapUrl($lat, $lon);
+
+        return '
+            <div style="padding:8px;">
+                <a href="' . $url . '" target="_blank" rel="noopener noreferrer"
+                   style="display:inline-block;padding:10px 14px;background:#0ea5e9;color:#fff;border-radius:10px;text-decoration:none;font-weight:600;">
+                    OpenStreetMap öffnen
+                </a>
+            </div>
+        ';
+    }
+
     private function BuildOpenStreetMapUrl(float $lat, float $lon): string
     {
         $bbox = [
@@ -1184,26 +1193,5 @@ class SkodaConnect extends IPSModuleStrict
             . implode(',', $bbox)
             . '&layer=mapnik&marker='
             . $lat . ',' . $lon;
-    }
-
-    private function GenerateOpenStreetMapIframe(float $lat, float $lon, int $heading, string $timestamp, string $type): string
-    {
-        $mapUrl = $this->BuildOpenStreetMapUrl($lat, $lon);
-
-        $info = '<div style="padding:8px 0 0 0; color:#334155; font-family:Segoe UI, sans-serif; font-size:12px;">'
-            . '<strong>Typ:</strong> ' . htmlspecialchars($type, ENT_QUOTES, 'UTF-8') . '<br>'
-            . '<strong>Ausrichtung:</strong> ' . $heading . '°<br>'
-            . '<strong>Zeitstempel:</strong> ' . (!empty($timestamp) ? htmlspecialchars($timestamp, ENT_QUOTES, 'UTF-8') : 'unbekannt')
-            . '</div>';
-
-        return '
-            <div style="padding:8px;">
-                <iframe
-                    src="' . $mapUrl . '"
-                    style="width:100%; height:320px; border:0; border-radius:12px; box-shadow:0 10px 24px rgba(15,23,42,0.08);">
-                </iframe>
-                ' . $info . '
-            </div>
-        ';
     }
 }
