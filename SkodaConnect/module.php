@@ -1085,6 +1085,28 @@ class SkodaConnect extends IPSModuleStrict
         return $directions[$index];
     }
 
+    private function DetectMimeType(string $filePath): string
+    {
+        if (function_exists('finfo_open')) {
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            if ($finfo !== false) {
+                $mime = finfo_file($finfo, $filePath);
+                finfo_close($finfo);
+
+                if (is_string($mime) && $mime !== '') {
+                    return $mime;
+                }
+            }
+        }
+
+        $info = @getimagesize($filePath);
+        if (is_array($info) && isset($info['mime']) && is_string($info['mime'])) {
+            return $info['mime'];
+        }
+
+        return 'image/png';
+    }
+
     /**
     * If the HTML-SDK is to be used, this function must be overwritten in order to return the HTML content.
     *
