@@ -633,7 +633,15 @@ class SkodaConnect extends IPSModuleStrict
                     $this->SetValue('Position_Type', $type);
 
                     if ($this->ReadPropertyBoolean('EnableMap')) {
-                        $this->SetValue('Position_Map', $this->GenerateOpenStreetMapIframe($lat, $lon, $heading, $timestamp, $type));
+                        $this->SetValue(
+                            'Position_Map',
+                            '<div style="padding:8px;">'
+                            . '<a href="' . $this->BuildOpenStreetMapUrl($lat, $lon) . '" target="_blank" '
+                            . 'style="display:inline-block;padding:10px 14px;background:#0ea5e9;color:#fff;border-radius:10px;text-decoration:none;font-weight:600;">'
+                            . 'OpenStreetMap öffnen'
+                            . '</a>'
+                            . '</div>'
+                        );
                     }
                 }
             }
