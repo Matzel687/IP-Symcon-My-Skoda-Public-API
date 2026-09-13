@@ -546,7 +546,43 @@ class SkodaConnect extends IPSModuleStrict
                 $this->SetValue('Status_Odometer', (int)$vehicle['odometer']['mileageInKm']);
             }
 
-            // 4. Ladeprofile
+            // 4. Lade-/Batteriedaten aus charging.status / charging.settings
+            $charging = $vehicle['charging'] ?? [];
+            $chargingStatus = $charging['status'] ?? [];
+            $battery = $chargingStatus['battery'] ?? [];
+            $chargingSettings = $charging['settings'] ?? [];
+
+            if (isset($battery['stateOfChargeInPercent'])) {
+                $this->SetValue('Charging_BatteryLevel', (int)$battery['stateOfChargeInPercent']);
+            }
+
+            if (isset($battery['remainingCruisingRangeInMeters'])) {
+                $rangeKm = (int)round((float)$battery['remainingCruisingRangeInMeters'] / 1000);
+                $this->SetValue('Charging_ElectricRange', $rangeKm);
+            }
+
+            if (isset($chargingSettings['targetStateOfChargeInPercent'])) {
+                $this->SetValue('Charging_TargetSoC', (int)$chargingSettings['targetStateOfChargeInPercent']);
+            }
+
+            if (isset($chargingStatus['state'])) {
+                $state = strtoupper((string)$chargingStatus['state']);
+                $mapping = [
+                    'OFF' => 0,
+                    'NOT_CHARGING' => 0,
+                    'CONNECTED' => 0,
+                    'READY_FOR_CHARGING' => 2,
+                    'CHARGING' => 1,
+                    'CONSERVATION' => 3,
+                    'CHARGE_PURPOSE_REACHED' => 3,
+                    'ERROR' => 4,
+                    'FAULT' => 4
+                ];
+
+                $this->SetValue('Charging_State', $mapping[$state] ?? 0);
+            }
+
+            // 5. Ladeprofile
             if (isset($vehicle['chargingProfiles'])) {
                 $chargingProfiles = $vehicle['chargingProfiles'];
                 $profiles = $chargingProfiles['profiles'] ?? [];
@@ -564,7 +600,7 @@ class SkodaConnect extends IPSModuleStrict
                 $this->SetValue('Charging_ProfilesHtml', '<div style="padding:12px;color:#64748b;">Keine Ladeprofile verfügbar.</div>');
             }
 
-            // 5. Parkposition
+            // 6. Parkposition
             if ($this->ReadPropertyBoolean('EnablePosition') && !empty($gpsCoordinates)) {
                 $lat = (float)($gpsCoordinates['latitude'] ?? 0);
                 $lon = (float)($gpsCoordinates['longitude'] ?? 0);
