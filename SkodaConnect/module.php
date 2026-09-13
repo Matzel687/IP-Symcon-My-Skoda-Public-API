@@ -1103,7 +1103,7 @@ class SkodaConnect extends IPSModuleStrict
             return '<div style="padding:12px;color:#b91c1c;">Bild konnte nicht geladen werden.</div>';
         }
 
-        $mime = mime_content_type($imagePath) ?: 'image/png';
+        $mime = $this->DetectMimeType($imagePath);
         $dataUri = 'data:' . $mime . ';base64,' . base64_encode($imageData);
 
         return '
