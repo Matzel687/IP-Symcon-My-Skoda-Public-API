@@ -1098,7 +1098,7 @@ class SkodaConnect extends IPSModuleStrict
             <div style="padding:8px;">
                 <iframe
                     src="' . $embedUrl . '"
-                    style="width:100%;height:100%;border:0;border-radius:12px;display:block;box-shadow:0 10px 24px rgba(15,23,42,0.08);">
+                    style="width:100%;height:80%;border:0;border-radius:12px;display:block;box-shadow:0 10px 24px rgba(15,23,42,0.08);">
                 </iframe>
 
                 <div style="margin-top:10px;padding:12px;border:1px solid #d1d5db;border-radius:12px;background:#ffffff;box-shadow:0 4px 12px rgba(15,23,42,0.04);font-family:Segoe UI, sans-serif;font-size:12px;color:#334155;">
