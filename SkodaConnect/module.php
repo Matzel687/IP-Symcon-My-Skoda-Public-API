@@ -540,7 +540,23 @@ class SkodaConnect extends IPSModuleStrict
             if (isset($vehicle['parkingPosition']['formattedAddress']) && !empty($vehicle['parkingPosition']['formattedAddress'])) {
                 $this->SetValue('Status_FormattedAddress', (string)$vehicle['parkingPosition']['formattedAddress']);
             }
+             // 2b. Klartext-Variablen für Türen, Fenster, Beleuchtung und Fahrzeugzustand
+            $status = $vehicle['status'] ?? [];
+            $overall = $status['overall'] ?? [];
+            $detail = $status['detail'] ?? [];
 
+            $this->SetValue('Status_TextDoors', $this->FormatDoorsStatus($overall, $detail));
+            $this->SetValue('Status_TextWindows', $this->FormatWindowsStatus($overall, $detail));
+            $this->SetValue('Status_TextLights', $this->FormatLightsStatus($overall, $detail));
+            $this->SetValue('Status_TextHealth', $this->FormatHealthStatus($vehicle));
+
+            // 2c. Klimatisierungstext wieder herstellen
+            $airConditioning = $vehicle['airConditioning'] ?? [];
+            if (!empty($airConditioning)) {
+                $this->SetValue('Climate_TextHeating', $this->FormatHeatingStatus($airConditioning));
+            } else {
+                $this->SetValue('Climate_TextHeating', 'Keine Informationen zur Klimatisierung verfügbar.');
+            }
             // 3. Kilometerstand
             if (isset($vehicle['odometer']['mileageInKm'])) {
                 $this->SetValue('Status_Odometer', (int)$vehicle['odometer']['mileageInKm']);
