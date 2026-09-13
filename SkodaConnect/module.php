@@ -190,7 +190,6 @@ class SkodaConnect extends IPSModuleStrict
         $this->RegisterVariableString("Charging_ProfilesHtml", $this->Translate("Ladeprofile HTML"), "", 31);
 
         $this->RegisterVariableString("Status_RenderUrl", $this->Translate("Render URL"), "", 39);
-        $this->RegisterVariableString("Status_RenderImagePath", $this->Translate("Render Bildpfad"), "", 40);
         $this->RegisterVariableString("Status_FormattedAddress", $this->Translate("Adresse"), "", 41);
 
         $this->RegisterVariableString("Status_VIN", $this->Translate("Fahrgestellnummer (VIN)"), "", 34);
@@ -525,15 +524,9 @@ class SkodaConnect extends IPSModuleStrict
                 $this->SetValue('Status_VIN', (string)$vehicle['vin']);
             }
 
-            // 1. Render URL und PNG speichern
+            // 1. Render URL
             if (isset($vehicle['renderUrl']) && !empty($vehicle['renderUrl'])) {
-                $renderUrl = (string)$vehicle['renderUrl'];
-                $this->SetValue('Status_RenderUrl', $renderUrl);
-
-                $imagePath = $this->SaveRenderImage($renderUrl);
-                if ($imagePath !== '') {
-                    $this->SetValue('Status_RenderImagePath', $imagePath);
-                }
+                $this->SetValue('Status_RenderUrl', (string)$vehicle['renderUrl']);
             }
 
             // 2. Adresse
@@ -1063,8 +1056,6 @@ class SkodaConnect extends IPSModuleStrict
 
         return 'image/png';
     }
-
-
 
     private function BuildOpenStreetMapIframeHtml(float $lat, float $lon, int $heading, string $timestamp, string $type, string $formattedAddress = ''): string
     {
