@@ -56,11 +56,12 @@ class SkodaConnect extends IPSModuleStrict
 
         try {
             $response = $this->SendApiRequest(
-                '/vehicles/' . $vin . '?include=info,status,charging,chargingProfiles,airConditioning,parkingPosition,fuelStatus,odometer,operations',
+                '/vehicles/' . $vin . '?include=info,status,charging,chargingProfiles,airConditioning,parkingPosition,odometer,operations',
                 'GET'
             );
 
-            $vehicle = $response['vehicle'] ?? $response;
+            // Die API liefert das Fahrzeug direkt, nicht verschachtelt in "vehicle"
+            $vehicle = is_array($response) && isset($response['vehicle']) ? $response['vehicle'] : $response;
 
             $this->SendDebug('GetVehicles', 'Raw-Response: ' . json_encode($vehicle, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), 0);
 
@@ -84,8 +85,12 @@ class SkodaConnect extends IPSModuleStrict
 
         try {
             $response = $this->SendApiRequest('/vehicles/' . $vin . '?include=chargingProfiles', 'GET');
-            $vehicle = $response['vehicle'] ?? [];
-            $chargingProfiles = $vehicle['chargingProfiles'] ?? [];
+
+            // API liefert das Fahrzeug direkt, nicht verschachtelt in "vehicle"
+            $chargingProfiles = is_array($response) && isset($response['chargingProfiles'])
+                ? $response['chargingProfiles']
+                : [];
+
             $profiles = $chargingProfiles['profiles'] ?? [];
             $currentProfile = $chargingProfiles['currentVehiclePositionProfile'] ?? null;
 
@@ -244,7 +249,7 @@ class SkodaConnect extends IPSModuleStrict
         $this->SetStatus(102); // Instanz aktiv
     }
 
-    public function RequestAction($Ident, $Value): void
+    public function RequestAction(string $Ident, mixed $Value): void
     {
         switch ($Ident) {
             case 'Climate_State':
@@ -484,14 +489,29 @@ class SkodaConnect extends IPSModuleStrict
             // Abruf des Fahrzeugstatus mit gezieltem include-Filter
             $response = $this->SendApiRequest("/vehicles/${vin}${queryString}", 'GET');
 
-            if (empty($response) || !isset($response['vehicle'])) {
+            if (empty($response)) {
                 $this->SetStatus(202);
                 $this->SendDebug('Error', 'Keine oder ungültige Antwort von der Škoda API erhalten.', 0);
                 return;
             }
 
-            $vehicle = $response['vehicle'];
+            // API liefert direkt das Fahrzeugobjekt, nicht verschachtelt in "vehicle"
+            $vehicle = is_array($response) && isset($response['vehicle']) ? $response['vehicle'] : $response;
+
             $this->SendDebug('Update', 'Vehicle Payload: ' . json_encode($vehicle, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), 0);
+
+            $status = $vehicle['status'] ?? [];
+            $overall = $status['overall'] ?? [];
+            $detail  = $status['detail'] ?? [];
+
+            $charging = $vehicle['charging'] ?? [];
+            $chargingSettings = $charging['settings'] ?? [];
+            $chargingStatus = $charging['status'] ?? [];
+            $battery = $chargingStatus['battery'] ?? [];
+
+            $airConditioning = $vehicle['airConditioning'] ?? [];
+            $parkingPosition = $vehicle['parkingPosition'] ?? [];
+            $gpsCoordinates = $parkingPosition['gpsCoordinates'] ?? [];
 
             // 0. Fahrzeug-Stammdaten
             if (isset($vehicle['vin'])) {
@@ -505,157 +525,101 @@ class SkodaConnect extends IPSModuleStrict
             }
 
             // 1. Batterie & Laden
-            if (isset($vehicle['charging'])) {
-                $ch = $vehicle['charging'];
-
-                if (isset($ch['battery']['stateOfChargeInPercent'])) {
-                    $this->SetValue('Charging_BatteryLevel', (int)$ch['battery']['stateOfChargeInPercent']);
-                } elseif (isset($ch['batteryLevel'])) {
-                    $this->SetValue('Charging_BatteryLevel', (int)$ch['batteryLevel']);
+            if (!empty($battery)) {
+                if (isset($battery['stateOfChargeInPercent'])) {
+                    $this->SetValue('Charging_BatteryLevel', (int)$battery['stateOfChargeInPercent']);
                 }
 
-                if (isset($ch['targetStateOfChargeInPercent'])) {
-                    $this->SetValue('Charging_TargetSoC', (int)$ch['targetStateOfChargeInPercent']);
-                } elseif (isset($ch['targetStateOfCharge'])) {
-                    $this->SetValue('Charging_TargetSoC', (int)$ch['targetStateOfCharge']);
+                if (isset($battery['remainingCruisingRangeInMeters'])) {
+                    $rangeKm = (int)round((float)$battery['remainingCruisingRangeInMeters'] / 1000);
+                    $this->SetValue('Charging_ElectricRange', $rangeKm);
                 }
+            }
 
-                if (isset($ch['cruisingRangeKm'])) {
-                    $this->SetValue('Charging_ElectricRange', (int)$ch['cruisingRangeKm']);
-                } elseif (isset($ch['electricRange'])) {
-                    $this->SetValue('Charging_ElectricRange', (int)$ch['electricRange']);
-                }
+            if (isset($chargingSettings['targetStateOfChargeInPercent'])) {
+                $this->SetValue('Charging_TargetSoC', (int)$chargingSettings['targetStateOfChargeInPercent']);
+            }
 
-                if (isset($ch['chargePowerInKw'])) {
-                    $this->SetValue('Charging_Power', (float)$ch['chargePowerInKw']);
-                }
+            if (isset($chargingStatus['chargePowerInKw'])) {
+                $this->SetValue('Charging_Power', (float)$chargingStatus['chargePowerInKw']);
+            }
 
-                if (isset($ch['chargeRateInKmPerHour'])) {
-                    $this->SetValue('Charging_Rate', (float)$ch['chargeRateInKmPerHour']);
-                }
+            if (isset($chargingStatus['remainingTimeToFullyChargedInMinutes'])) {
+                $this->SetValue('Charging_RemainingTime', (float)$chargingStatus['remainingTimeToFullyChargedInMinutes']);
+            }
 
-                if (isset($ch['remainingChargingTimeToCompleteInMin'])) {
-                    $this->SetValue('Charging_RemainingTime', (float)$ch['remainingChargingTimeToCompleteInMin']);
-                }
+            if (isset($chargingStatus['state'])) {
+                $stateStr = strtoupper((string)$chargingStatus['state']);
 
-                if (isset($ch['chargingState'])) {
-                    $stateStr = strtoupper((string)$ch['chargingState']);
-                    $chargingStateMap = [
-                        'OFF'                      => 0,
-                        'NOT_CHARGING'             => 0,
-                        'CHARGING'                 => 1,
-                        'READY_FOR_CHARGING'       => 2,
-                        'CONSERVATION'             => 3,
-                        'CHARGE_PURPOSE_REACHED'   => 3,
-                        'ERROR'                    => 4,
-                        'FAULT'                    => 4,
-                        'INVALID'                  => 5,
-                        'UNSUPPORTED'              => 5
-                    ];
-                    $stateInt = $chargingStateMap[$stateStr] ?? 0;
-                    $this->SetValue('Charging_State', $stateInt);
-                    $this->SetValue('Charging_Active', $stateInt === 1);
-                }
+                $chargingStateMap = [
+                    'OFF'               => 0,
+                    'NOT_CHARGING'      => 0,
+                    'CONNECT_CABLE'     => 0,
+                    'CONNECTED'         => 0,
+                    'CHARGING'          => 1,
+                    'READY_FOR_CHARGING'=> 2,
+                    'CONSERVATION'      => 3,
+                    'CHARGE_PURPOSE_REACHED' => 3,
+                    'ERROR'             => 4,
+                    'FAULT'             => 4
+                ];
 
-                if (isset($ch['plugState']) || isset($ch['plugConnectionState'])) {
-                    $plugStr = strtoupper((string)($ch['plugState'] ?? $ch['plugConnectionState']));
-                    $plugStateMap = [
-                        'DISCONNECTED' => 0,
-                        'CONNECTED'    => 1,
-                        'UNLOCKED'     => 1,
-                        'LOCKED'       => 2,
-                        'INVALID'      => 3,
-                        'UNSUPPORTED'  => 3
-                    ];
-                    $this->SetValue('Charging_PlugState', $plugStateMap[$plugStr] ?? 0);
-                }
-
-                if (isset($ch['chargeMode'])) {
-                    $modeMap = ['MANUAL' => 0, 'TIMER' => 1, 'REDUCED' => 2];
-                    $this->SetValue('Charging_ChargeMode', $modeMap[$ch['chargeMode']] ?? 0);
-                }
-
-                $this->SetValue('Charging_TextStatus', $this->FormatChargingStatus($ch));
+                $stateInt = $chargingStateMap[$stateStr] ?? 0;
+                $this->SetValue('Charging_State', $stateInt);
+                $this->SetValue('Charging_Active', $stateInt === 1);
             }
 
             // 2. Kraftstoff & Verbrenner (nur bei Nicht-BEV)
-            if (!$isBEV) {
-                if (isset($vehicle['fuelStatus'])) {
-                    $fl = $vehicle['fuelStatus'];
+            if (!$isBEV && isset($vehicle['fuelStatus'])) {
+                $fl = $vehicle['fuelStatus'];
 
-                    if (isset($fl['primaryEngine']['level'])) {
-                        $this->SetValue('Fuel_LevelPercent', (int)$fl['primaryEngine']['level']);
-                    }
-
-                    if (isset($fl['primaryEngine']['range'])) {
-                        $this->SetValue('Fuel_CombustionRange', (int)$fl['primaryEngine']['range']);
-                    }
-                } elseif (isset($vehicle['fuel'])) {
-                    $fl = $vehicle['fuel'];
-
-                    if (isset($fl['primaryEngine']['level'])) {
-                        $this->SetValue('Fuel_LevelPercent', (int)$fl['primaryEngine']['level']);
-                    }
-
-                    if (isset($fl['primaryEngine']['range'])) {
-                        $this->SetValue('Fuel_CombustionRange', (int)$fl['primaryEngine']['range']);
-                    }
+                if (isset($fl['primaryEngine']['level'])) {
+                    $this->SetValue('Fuel_LevelPercent', (int)$fl['primaryEngine']['level']);
                 }
 
-                if (isset($vehicle['odometer'])) {
-                    $this->SetValue('Status_Odometer', (int)$vehicle['odometer']);
+                if (isset($fl['primaryEngine']['range'])) {
+                    $this->SetValue('Fuel_CombustionRange', (int)$fl['primaryEngine']['range']);
                 }
             }
 
+            if (!$isBEV && isset($vehicle['odometer']['mileageInKm'])) {
+                $this->SetValue('Status_Odometer', (int)$vehicle['odometer']['mileageInKm']);
+            }
+
             // 3. Fahrzeugzustand & Klartext
-            $this->SetValue('Status_TextDoors', $this->FormatDoorsStatus($vehicle));
-            $this->SetValue('Status_TextWindows', $this->FormatWindowsStatus($vehicle));
-            $this->SetValue('Status_TextLights', $this->FormatLightsStatus($vehicle));
+            $this->SetValue('Status_TextDoors', $this->FormatDoorsStatus($overall, $detail));
+            $this->SetValue('Status_TextWindows', $this->FormatWindowsStatus($overall, $detail));
+            $this->SetValue('Status_TextLights', $this->FormatLightsStatus($overall, $detail));
             $this->SetValue('Status_TextHealth', $this->FormatHealthStatus($vehicle));
 
             // 4. Klimatisierung
-            if ($this->ReadPropertyBoolean('EnableClimate') && isset($vehicle['airConditioning'])) {
-                $cl = $vehicle['airConditioning'];
+            if ($this->ReadPropertyBoolean('EnableClimate') && !empty($airConditioning)) {
+                $cl = $airConditioning;
 
                 $climateStateMap = [
-                    'OFF'         => 0,
-                    'HEATING'     => 1,
-                    'COOLING'     => 2,
+                    'OFF' => 0,
+                    'HEATING' => 1,
+                    'COOLING' => 2,
                     'VENTILATION' => 3
                 ];
-                if (isset($cl['climateState'])) {
-                    $stateStr = strtoupper((string)$cl['climateState']);
+
+                if (isset($cl['state'])) {
+                    $stateStr = strtoupper((string)$cl['state']);
                     $stateInt = $climateStateMap[$stateStr] ?? 0;
                     $this->SetValue('Climate_State', $stateInt);
                     $this->SetValue('Climate_Active', $stateInt > 0);
                 }
 
-                if (isset($cl['targetTemperatureInCelsius'])) {
-                    $this->SetValue('Climate_TargetTemperature', (float)$cl['targetTemperatureInCelsius']);
-                }
-
-                if (isset($cl['remainingTimeInMinutes'])) {
-                    $this->SetValue('Climate_RemainingTime', (float)$cl['remainingTimeInMinutes']);
-                }
-
-                $powerSourceMap = [
-                    'OFF'      => 0,
-                    'NONE'     => 0,
-                    'BATTERY'  => 1,
-                    'MAINS'    => 2,
-                    'ELECTRIC' => 2
-                ];
-                if (isset($cl['powerSource'])) {
-                    $powerStr = strtoupper((string)$cl['powerSource']);
-                    $this->SetValue('Climate_PowerSource', $powerSourceMap[$powerStr] ?? 0);
+                if (isset($cl['targetTemperature']['value'])) {
+                    $this->SetValue('Climate_TargetTemperature', (float)$cl['targetTemperature']['value']);
                 }
 
                 $this->SetValue('Climate_TextHeating', $this->FormatHeatingStatus($cl));
 
                 if (isset($cl['windowHeating'])) {
                     $wh = $cl['windowHeating'];
-                    $frontOn = isset($wh['frontWindow']) && strtoupper((string)$wh['frontWindow']) === 'ON';
-                    $rearOn = isset($wh['rearWindow']) && strtoupper((string)$wh['rearWindow']) === 'ON';
+                    $frontOn = isset($wh['front']) && strtoupper((string)$wh['front']) === 'ON';
+                    $rearOn = isset($wh['rear']) && strtoupper((string)$wh['rear']) === 'ON';
 
                     $this->SetValue('Climate_WindowHeatingFront', $frontOn);
                     $this->SetValue('Climate_WindowHeatingRear', $rearOn);
@@ -681,14 +645,14 @@ class SkodaConnect extends IPSModuleStrict
             }
 
             // 6. Parkposition
-            if ($this->ReadPropertyBoolean('EnablePosition') && isset($vehicle['parkingPosition'])) {
-                $pos = $vehicle['parkingPosition'];
-                if (isset($pos['latitude']) && isset($pos['longitude'])) {
-                    $lat = (float)$pos['latitude'];
-                    $lon = (float)$pos['longitude'];
-                    $heading = isset($pos['heading']) ? (int)$pos['heading'] : 0;
-                    $timestamp = isset($pos['timestamp']) ? (string)$pos['timestamp'] : '';
-                    $type = isset($pos['type']) ? (string)$pos['type'] : 'PARKING_POSITION';
+            if ($this->ReadPropertyBoolean('EnablePosition') && !empty($gpsCoordinates)) {
+                $lat = (float)($gpsCoordinates['latitude'] ?? 0);
+                $lon = (float)($gpsCoordinates['longitude'] ?? 0);
+
+                if ($lat !== 0 || $lon !== 0) {
+                    $heading = isset($parkingPosition['heading']) ? (int)$parkingPosition['heading'] : 0;
+                    $timestamp = isset($parkingPosition['carCapturedTimestamp']) ? (string)$parkingPosition['carCapturedTimestamp'] : '';
+                    $type = isset($parkingPosition['state']) ? (string)$parkingPosition['state'] : 'PARKING_POSITION';
 
                     $this->SetValue('Position_Latitude', $lat);
                     $this->SetValue('Position_Longitude', $lon);
@@ -697,8 +661,7 @@ class SkodaConnect extends IPSModuleStrict
                     $this->SetValue('Position_Type', $type);
 
                     if ($this->ReadPropertyBoolean('EnableMap')) {
-                        $mapHtml = $this->GenerateMapHtml($lat, $lon, $heading, $timestamp, $type);
-                        $this->SetValue('Position_Map', $mapHtml);
+                        $this->SetValue('Position_Map', $this->GenerateMapHtml($lat, $lon, $heading, $timestamp, $type));
                     }
                 }
             }
@@ -787,136 +750,65 @@ class SkodaConnect extends IPSModuleStrict
         return 'Achtung: ' . implode(', ', $activeItems) . ' und ' . $lastItem . ' sind eingeschaltet.';
     }
 
-    private function FormatDoorsStatus(array $vehicle): string
+    private function FormatDoorsStatus(array $overall, array $detail): string
     {
-        if (!isset($vehicle['doors'])) {
-            return 'Keine Informationen zum Türstatus verfügbar.';
-        }
-        $doors = $vehicle['doors'];
-        $openItems = [];
-        
-        $doorMap = [
-            'frontLeft'  => 'Fahrertür (vorne links)',
-            'frontRight' => 'Beifahrertür (vorne rechts)',
-            'rearLeft'   => 'Tür hinten links',
-            'rearRight'  => 'Tür hinten rechts',
-            'trunk'      => 'Kofferraum',
-            'hood'       => 'Motorhaube'
-        ];
+        $doorsLocked = strtoupper((string)($overall['doorsLocked'] ?? 'NO'));
+        $doorsState = strtoupper((string)($overall['doors'] ?? ''));
+        $lockedState = strtoupper((string)($overall['locked'] ?? 'NO'));
 
-        foreach ($doorMap as $key => $label) {
-            if (isset($doors[$key]) && in_array(strtoupper((string)$doors[$key]), ['OPEN', 'UNLOCKED_AND_OPEN'])) {
-                $openItems[] = $label;
-            }
+        if ($doorsState === 'OPEN') {
+            return 'Achtung: Mindestens eine Tür oder Klappe ist offen.';
         }
 
-        $isLocked = isset($doors['overallLockState']) && strtoupper((string)$doors['overallLockState']) === 'LOCKED';
-
-        if (empty($openItems)) {
-            if ($isLocked) {
-                return 'Alle Türen und Klappen sind geschlossen und verriegelt.';
-            } else {
-                return 'Achtung: Das Fahrzeug ist unverschlossen, alle Türen und Klappen sind jedoch geschlossen.';
-            }
+        if ($doorsLocked === 'YES' || $lockedState === 'YES') {
+            return 'Alle Türen und Klappen sind geschlossen und verriegelt.';
         }
 
-        $lastItem = array_pop($openItems);
-        $itemList = empty($openItems) ? $lastItem : implode(', ', $openItems) . ' und ' . $lastItem;
-        $verb = (count($openItems) + 1 > 1) ? 'sind' : 'ist';
-        $lockNotice = $isLocked ? '' : ' Das Fahrzeug ist zudem unverschlossen!';
-
-        return "Achtung: ${itemList} ${verb} noch offen!${lockNotice}";
+        return 'Achtung: Fahrzeug ist nicht verriegelt, Türen und Klappen sind aber geschlossen.';
     }
 
-    private function FormatWindowsStatus(array $vehicle): string
+    private function FormatWindowsStatus(array $overall, array $detail): string
     {
-        if (!isset($vehicle['windows'])) {
-            return 'Keine Informationen zum Fensterstatus verfügbar.';
-        }
-        $windows = $vehicle['windows'];
-        $openItems = [];
-
-        $windowMap = [
-            'frontLeft'  => 'Fenster vorne links',
-            'frontRight' => 'Fenster vorne rechts',
-            'rearLeft'   => 'Fenster hinten links',
-            'rearRight'  => 'Fenster hinten rechts',
-            'sunroof'    => 'Schiebedach'
-        ];
-
-        foreach ($windowMap as $key => $label) {
-            if (isset($windows[$key]) && in_array(strtoupper((string)$windows[$key]), ['OPEN', 'INVALID', 'VENTILATION'])) {
-                $openItems[] = $label;
-            }
+        $windowsState = strtoupper((string)($overall['windows'] ?? ''));
+        if ($windowsState === 'OPEN') {
+            return 'Achtung: Mindestens ein Fenster oder Schiebedach ist geöffnet.';
         }
 
-        if (empty($openItems)) {
-            return 'Alle Fenster und das Schiebedach sind geschlossen.';
-        }
-
-        $lastItem = array_pop($openItems);
-        $itemList = empty($openItems) ? $lastItem : implode(', ', $openItems) . ' und ' . $lastItem;
-        $verb = (count($openItems) + 1 > 1) ? 'sind' : 'ist';
-
-        return "Achtung: ${itemList} ${verb} noch offen!";
+        return 'Alle Fenster und das Schiebedach sind geschlossen.';
     }
 
-    private function FormatLightsStatus(array $vehicle): string
+    private function FormatLightsStatus(array $overall, array $detail): string
     {
-        if (!isset($vehicle['lights'])) {
-            return 'Keine Informationen zum Lichtstatus verfügbar.';
-        }
-        $lights = $vehicle['lights'];
-        $activeLights = [];
-
-        if (isset($lights['hazardLights']) && strtoupper((string)$lights['hazardLights']) === 'ON') {
-            return 'Achtung: Die Warnblinkanlage des Fahrzeugs ist eingeschaltet!';
+        $lightsState = strtoupper((string)($overall['lights'] ?? ''));
+        if ($lightsState === 'ON') {
+            return 'Achtung: Die Beleuchtung ist eingeschaltet.';
         }
 
-        if (isset($lights['headlights']) && strtoupper((string)$lights['headlights']) === 'ON') {
-            $activeLights[] = 'das Scheinwerferlicht';
-        }
-        if (isset($lights['parkingLights']) && strtoupper((string)$lights['parkingLights']) === 'ON') {
-            $activeLights[] = 'das Standlicht';
-        }
-
-        if (empty($activeLights)) {
-            return 'Die gesamte Beleuchtung des Fahrzeugs ist ausgeschaltet.';
-        }
-
-        return 'Achtung: ' . implode(' und ', $activeLights) . ' ist noch eingeschaltet!';
+        return 'Die gesamte Beleuchtung ist ausgeschaltet.';
     }
 
     private function FormatHealthStatus(array $vehicle): string
     {
+        $status = $vehicle['status'] ?? [];
+        $overall = $status['overall'] ?? [];
+        $detail = $status['detail'] ?? [];
+
         $warnings = [];
 
-        if (isset($vehicle['health'])) {
-            $h = $vehicle['health'];
+        if (($overall['doorsLocked'] ?? 'NO') === 'NO') {
+            $warnings[] = 'Fahrzeug ist nicht verriegelt.';
+        }
 
-            if (isset($h['tirePressureStatus']) && strtoupper((string)$h['tirePressureStatus']) !== 'OK') {
-                $warnings[] = 'Reifendruckwarnung aktiv!';
-            }
+        if (($detail['sunroof'] ?? '') === 'OPEN') {
+            $warnings[] = 'Schiebedach offen.';
+        }
 
-            if (isset($h['adBlueRange']) && (int)$h['adBlueRange'] < 1000) {
-                $warnings[] = 'AdBlue Reichweite gering (' . (int)$h['adBlueRange'] . ' km)!';
-            }
+        if (($detail['trunk'] ?? '') === 'OPEN') {
+            $warnings[] = 'Kofferraum offen.';
+        }
 
-            if (isset($h['inspectionDueInKm']) && (int)$h['inspectionDueInKm'] <= 1500) {
-                $warnings[] = 'Inspektion fällig in ' . (int)$h['inspectionDueInKm'] . ' km';
-            }
-
-            if (isset($h['oilServiceDueInKm']) && (int)$h['oilServiceDueInKm'] <= 1500) {
-                $warnings[] = 'Ölservice fällig in ' . (int)$h['oilServiceDueInKm'] . ' km';
-            }
-
-            if (!empty($h['systemWarnings']) && is_array($h['systemWarnings'])) {
-                foreach ($h['systemWarnings'] as $warn) {
-                    if (isset($warn['message'])) {
-                        $warnings[] = (string)$warn['message'];
-                    }
-                }
-            }
+        if (($detail['bonnet'] ?? '') === 'OPEN') {
+            $warnings[] = 'Motorhaube offen.';
         }
 
         if (empty($warnings)) {
