@@ -635,7 +635,7 @@ class SkodaConnect extends IPSModuleStrict
                     if ($this->ReadPropertyBoolean('EnableMap')) {
                         $this->SetValue(
                             'Position_Map',
-                            $this->BuildOpenStreetMapLinkHtml($lat, $lon)
+                            $this->BuildOpenStreetMapIframeHtml($lat, $lon, $heading, $timestamp, $type)
                         );
                     }
                 }
@@ -1017,68 +1017,7 @@ class SkodaConnect extends IPSModuleStrict
         throw new Exception("Škoda API Fehler HTTP ${httpCode}: " . $responseBody);
     }
 
-    private function GenerateMapHtml(float $lat, float $lon, int $heading, string $timestamp, string $type): string
-    {
-        $directionText = $this->GetHeadingDirectionText($heading);
-        $formattedTime = !empty($timestamp) ? date('d.m.Y H:i:s', strtotime($timestamp)) : 'Unbekannt';
-
-        $svgIcon = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#0284c7" stroke="#ffffff" stroke-width="1.5"><circle cx="12" cy="12" r="11" fill="#0f172a" stroke="#0284c7" stroke-width="2"/><path d="M12 3L18 19L12 16L6 19L12 3Z" fill="#38bdf8"/></svg>';
-
-        $popupHtml = '<div style="font-family:sans-serif; font-size:12px;">'
-            . '<b>Škoda Parkposition</b><br>'
-            . 'Ausrichtung: ' . $heading . '° (' . $directionText . ')<br>'
-            . 'Typ: ' . htmlspecialchars($type, ENT_QUOTES, 'UTF-8') . '<br>'
-            . 'Zeit: ' . $formattedTime
-            . '</div>';
-
-        $infoHtml = '<div class="info-title">📍 Parkposition Details</div>'
-            . '<div class="info-grid">'
-            . '<span>Typ:</span><span class="info-val">' . htmlspecialchars($type, ENT_QUOTES, 'UTF-8') . '</span>'
-            . '<span>Ausrichtung:</span><span class="info-val">' . $heading . '° (' . $directionText . ')</span>'
-            . '<span>Gesendet:</span><span class="info-val">' . $formattedTime . '</span>'
-            . '<span>Koordinaten:</span><span class="info-val">' . round($lat, 5) . ', ' . round($lon, 5) . '</span>'
-            . '</div>';
-
-        $svgIconJson = json_encode($svgIcon, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
-        $popupHtmlJson = json_encode($popupHtml, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
-        $infoHtmlJson = json_encode($infoHtml, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
-
-        $html = '<!DOCTYPE html><html><head>';
-        $html .= '<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0">';
-        $html .= '<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>';
-        $html .= '<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>';
-        $html .= '<style>';
-        $html .= 'body, html { margin:0; padding:0; height:100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: linear-gradient(180deg, #eff6ff 0%, #e2e8f0 100%); }';
-        $html .= '#map { width:100%; height:100%; min-height: 320px; border-radius: 16px; border: 1px solid #dfe7f1; overflow: hidden; box-shadow: 0 12px 24px rgba(15, 23, 42, 0.10); }';
-        $html .= '.car-icon-container { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; }';
-        $html .= '.car-marker { width: 36px; height: 36px; transition: transform 0.5s ease; filter: drop-shadow(0px 3px 6px rgba(0,0,0,0.4)); }';
-        $html .= '.info-card { background: linear-gradient(180deg, rgba(15,23,42,0.92) 0%, rgba(30,41,59,0.90) 100%); backdrop-filter: blur(8px); color: #f8fafc; padding: 12px 14px; border-radius: 14px; border: 1px solid rgba(148,163,184,0.35); font-size: 12px; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.28); }';
-        $html .= '.info-title { font-weight: 700; color: #7dd3fc; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }';
-        $html .= '.info-grid { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; color: #cbd5e1; }';
-        $html .= '.info-val { font-weight: 700; color: #ffffff; }';
-        $html .= '</style></head><body>';
-        $html .= '<div id="map"></div>';
-        $html .= '<script>';
-        $html .= 'var map = L.map("map").setView([' . $lat . ', ' . $lon . '], 16);';
-        $html .= 'L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: "&copy; OpenStreetMap" }).addTo(map);';
-        $html .= 'var carIcon = L.divIcon({';
-        $html .= '  className: "car-icon-container",';
-        $html .= '  html: ' . $svgIconJson . ',';
-        $html .= '  iconSize: [40, 40], iconAnchor: [20, 20]';
-        $html .= '});';
-        $html .= 'var marker = L.marker([' . $lat . ', ' . $lon . '], {icon: carIcon}).addTo(map);';
-        $html .= 'marker.bindPopup(' . $popupHtmlJson . ');';
-        $html .= 'var infoBox = L.control({position: "bottomleft"});';
-        $html .= 'infoBox.onAdd = function(map) {';
-        $html .= '  var div = L.DomUtil.create("div", "info-card");';
-        $html .= '  div.innerHTML = ' . $infoHtmlJson . ';';
-        $html .= '  return div;';
-        $html .= '};';
-        $html .= 'infoBox.addTo(map);';
-        $html .= '</script></body></html>';
-
-        return $html;
-    }
+    
 
     private function GetHeadingDirectionText(int $heading): string
     {
@@ -1138,44 +1077,25 @@ class SkodaConnect extends IPSModuleStrict
         ';
     }
 
-    /**
-    * Generate a message that updates all elements in the HTML display.
-    *
-    * @return string JSON encoded message information
-    */
-    private function GetFullUpdateMessage(): string
+    private function BuildOpenStreetMapIframeHtml(float $lat, float $lon, int $heading, string $timestamp, string $type): string
     {
-        // Fill resultset
-        $result = [];
-        $result['stocktext'] = $this->ReadPropertyString('StockLabel');
-        $result['stockfont'] = $this->ReadPropertyInteger('StockFont');
-        $result['trendtext'] = $this->ReadPropertyFormatted('TrendVariable');
-        $result['trendfont'] = $this->ReadPropertyInteger('TrendFont');
-        $result['trendpositive'] = $this->GetColorFormatted($this->ReadPropertyInteger('TrendPositive'));
-        $result['trendnegative'] = $this->GetColorFormatted($this->ReadPropertyInteger('TrendNegative'));
-        $result['chartline'] = $this->GetColorFormatted($this->ReadPropertyInteger('ChartLine'));
-        $result['chartperiod'] = $this->Translate(self::TWSW_MAP_PERIOD[$this->ReadPropertyInteger('ChartData')]);
-        $result['chartsmooth'] = $this->ReadPropertyBoolean('ChartSmooth');
-        $result['chartfill'] = $this->ReadPropertyBoolean('ChartFill');
-        $result['chartoffset'] = $this->ReadPropertyInteger('ChartOffset');
-        $result['chartdata'] = $this->ReadCacheArray();
-        $result['pricetext'] = $this->ReadPropertyFormatted('PriceVariable');
-        $result['pricefont'] = $this->ReadPropertyInteger('PriceFont');
-        $this->LogDebug(__FUNCTION__, $result);
-        // send it
-        return json_encode($result);
-    }
+        $embedUrl = $this->BuildOpenStreetMapUrl($lat, $lon);
 
-    private function BuildOpenStreetMapLinkHtml(float $lat, float $lon): string
-    {
-        $url = $this->BuildOpenStreetMapUrl($lat, $lon);
+        $direction = $this->GetHeadingDirectionText($heading);
+        $timestampText = !empty($timestamp) ? htmlspecialchars($timestamp, ENT_QUOTES, 'UTF-8') : 'unbekannt';
 
         return '
             <div style="padding:8px;">
-                <a href="' . $url . '" target="_blank" rel="noopener noreferrer"
-                   style="display:inline-block;padding:10px 14px;background:#0ea5e9;color:#fff;border-radius:10px;text-decoration:none;font-weight:600;">
-                    OpenStreetMap öffnen
-                </a>
+                <iframe
+                    src="' . $embedUrl . '"
+                    style="width:100%;height:320px;border:0;border-radius:12px;box-shadow:0 10px 24px rgba(15,23,42,0.08);">
+                </iframe>
+
+                <div style="padding:8px 0 0 0;font-family:Segoe UI, sans-serif;font-size:12px;color:#334155;">
+                    <strong>Typ:</strong> ' . htmlspecialchars($type, ENT_QUOTES, 'UTF-8') . '<br>
+                    <strong>Ausrichtung:</strong> ' . $heading . '° (' . $direction . ')<br>
+                    <strong>Zeitstempel:</strong> ' . $timestampText . '
+                </div>
             </div>
         ';
     }
