@@ -633,7 +633,7 @@ class SkodaConnect extends IPSModuleStrict
                     $this->SetValue('Position_Type', $type);
 
                     if ($this->ReadPropertyBoolean('EnableMap')) {
-                        $this->SetValue('Position_Map', $this->GenerateMapHtml($lat, $lon, $heading, $timestamp, $type));
+                        $this->SetValue('Position_Map', $this->GenerateOpenStreetMapIframe($lat, $lon, $heading, $timestamp, $type));
                     }
                 }
             }
@@ -1176,5 +1176,26 @@ class SkodaConnect extends IPSModuleStrict
             . implode(',', $bbox)
             . '&layer=mapnik&marker='
             . $lat . ',' . $lon;
+    }
+
+    private function GenerateOpenStreetMapIframe(float $lat, float $lon, int $heading, string $timestamp, string $type): string
+    {
+        $mapUrl = $this->BuildOpenStreetMapUrl($lat, $lon);
+
+        $info = '<div style="padding:8px 0 0 0; color:#334155; font-family:Segoe UI, sans-serif; font-size:12px;">'
+            . '<strong>Typ:</strong> ' . htmlspecialchars($type, ENT_QUOTES, 'UTF-8') . '<br>'
+            . '<strong>Ausrichtung:</strong> ' . $heading . '°<br>'
+            . '<strong>Zeitstempel:</strong> ' . (!empty($timestamp) ? htmlspecialchars($timestamp, ENT_QUOTES, 'UTF-8') : 'unbekannt')
+            . '</div>';
+
+        return '
+            <div style="padding:8px;">
+                <iframe
+                    src="' . $mapUrl . '"
+                    style="width:100%; height:320px; border:0; border-radius:12px; box-shadow:0 10px 24px rgba(15,23,42,0.08);">
+                </iframe>
+                ' . $info . '
+            </div>
+        ';
     }
 }
