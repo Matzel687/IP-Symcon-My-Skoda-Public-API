@@ -184,6 +184,10 @@ class SkodaConnect extends IPSModuleStrict
         $this->RegisterVariableInteger("Charging_BatteryLevel", $this->Translate("Akkustand"), "~Battery.100", 1);
         $this->RegisterVariableInteger("Charging_ElectricRange", $this->Translate("Elektrische Reichweite"), "", 2);
         $this->RegisterVariableInteger("Charging_State", $this->Translate("Lade-Status"), "SKODA.ChargingState", 3);
+        $this->RegisterVariableInteger("Charging_TargetSoC", $this->Translate("Ziel-SoC"), "", 4);
+
+        $this->RegisterVariableString("Charging_ProfilesJson", $this->Translate("Ladeprofile JSON"), "", 30);
+        $this->RegisterVariableString("Charging_ProfilesHtml", $this->Translate("Ladeprofile HTML"), "", 31);
 
         $this->RegisterVariableString("Status_RenderUrl", $this->Translate("Render URL"), "", 39);
         $this->RegisterVariableString("Status_RenderImagePath", $this->Translate("Render Bildpfad"), "", 40);
