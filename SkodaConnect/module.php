@@ -1064,60 +1064,7 @@ class SkodaConnect extends IPSModuleStrict
         return 'image/png';
     }
 
-    /**
-    * If the HTML-SDK is to be used, this function must be overwritten in order to return the HTML content.
-    *
-    * @return string Initial display of a representation via HTML SDK
-    */
-    public function GetVisualizationTile(): string
-    {
-        $renderValue = $this->GetValue('Status_RenderImagePath');
 
-        $imageData = null;
-        $mime = 'image/png';
-
-        // Medienobjekt-ID aus dem Modul-Variable
-        if (is_numeric($renderValue) && (int)$renderValue > 0) {
-            try {
-                $mediaContent = IPS_GetMediaContent((int)$renderValue);
-
-                if (is_string($mediaContent) && $mediaContent !== '') {
-                    $decoded = base64_decode($mediaContent, true);
-
-                    if ($decoded !== false) {
-                        $imageData = $decoded;
-                    } else {
-                        $imageData = $mediaContent;
-                    }
-
-                    $mime = $this->DetectMimeTypeFromData($imageData);
-                }
-            } catch (Exception $e) {
-                $this->SendDebug('GetVisualizationTile', 'Fehler beim Laden des Medienobjekts: ' . $e->getMessage(), 0);
-            }
-        } else {
-            // Fallback für alte Dateipfade
-            $imagePath = (string)$renderValue;
-            if (!empty($imagePath) && is_file($imagePath)) {
-                $imageData = @file_get_contents($imagePath);
-                if ($imageData !== false) {
-                    $mime = $this->DetectMimeType($imagePath);
-                }
-            }
-        }
-
-        if ($imageData === null || $imageData === false || strlen($imageData) === 0) {
-            return '<div style="padding:12px;color:#64748b;">Noch kein Fahrzeugbild verfügbar.</div>';
-        }
-
-        $dataUri = 'data:' . $mime . ';base64,' . base64_encode($imageData);
-
-        return '
-            <div style="padding:8px;">
-                <img src="' . $dataUri . '" style="width:100%;max-width:100%;height:auto;border-radius:12px;display:block;" />
-            </div>
-        ';
-    }
 
     private function BuildOpenStreetMapIframeHtml(float $lat, float $lon, int $heading, string $timestamp, string $type, string $formattedAddress = ''): string
     {
